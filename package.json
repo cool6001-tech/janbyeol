@@ -1,0 +1,20 @@
+{
+  "name": "janbyeol",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "잔별 — 사소한 하루가 별이 되어 떠오르는 3D 감성 소셜 아카이빙",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.1",
+    "vite": "^5.4.8"
+  }
+}
