@@ -6,7 +6,7 @@ import { relativeWhen, isAnniversary, yearsAgo } from '../lib/time.js'
  * 잔별 카드
  * 우주 뷰에서는 보이지 않던 사진이, 여기서만 어두운 톤으로 깔립니다.
  */
-export default function StarCard({ star, me, reach, onWarm, onReply, onClose }) {
+export default function StarCard({ star, me, reach, open = true, onWarm, onReply, onClose }) {
   const [draft, setDraft] = useState('')
   const bodyRef = useRef(null)
 
@@ -40,7 +40,8 @@ export default function StarCard({ star, me, reach, onWarm, onReply, onClose }) 
   }
 
   return (
-    <section className="card open" aria-live="polite">
+    <section className={`card${open ? ' open' : ''}`} aria-live="polite">
+      <span className="grip" aria-hidden="true" />
       <button className="close" onClick={onClose} aria-label="닫기">
         ×
       </button>

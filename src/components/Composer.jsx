@@ -1,15 +1,23 @@
 import { useRef, useState } from 'react'
 
-/** 잔별 띄우기 — 글 한 줄과 사진 한 장 */
-export default function Composer({ onSubmit, onFocus }) {
+/**
+ * 잔별 띄우기 — 글 한 줄과 사진 한 장
+ *
+ * 좁은 화면에서는 평소에 한 줄로 접혀 있다가, 쓰기 시작하면 펼쳐집니다.
+ * 입력창이 늘 150px를 차지하면 정작 봐야 할 하늘이 그만큼 줄어드니까요.
+ */
+export default function Composer({ onSubmit, onFocus, compact = false }) {
   const [text, setText] = useState('')
   const [photo, setPhoto] = useState(null)
+  const [typing, setTyping] = useState(false)
   const fileRef = useRef(null)
   const areaRef = useRef(null)
 
+  const folded = compact && !typing && !text.trim() && !photo
+
   const grow = (el) => {
     el.style.height = 'auto'
-    el.style.height = Math.min(110, el.scrollHeight) + 'px'
+    el.style.height = Math.min(compact ? 84 : 110, el.scrollHeight) + 'px'
   }
 
   const pickFile = (e) => {
@@ -26,18 +34,26 @@ export default function Composer({ onSubmit, onFocus }) {
     onSubmit({ text, photo })
     setText('')
     setPhoto(null)
+    setTyping(false)
     if (fileRef.current) fileRef.current.value = ''
-    if (areaRef.current) areaRef.current.style.height = 'auto'
+    if (areaRef.current) {
+      areaRef.current.style.height = 'auto'
+      areaRef.current.blur()
+    }
   }
 
   return (
-    <form className="composer" onSubmit={submit}>
+    <form className={`composer${compact ? ' compact' : ''}${folded ? ' folded' : ''}`} onSubmit={submit}>
       <textarea
         id="draft"
         ref={areaRef}
         rows={1}
         value={text}
-        onFocus={onFocus}
+        onFocus={() => {
+          setTyping(true)
+          onFocus?.()
+        }}
+        onBlur={() => setTyping(false)}
         onChange={(e) => {
           setText(e.target.value)
           grow(e.target)

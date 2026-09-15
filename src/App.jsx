@@ -9,7 +9,7 @@ import ConstellationPanel from './components/ConstellationPanel.jsx'
 import { useJanbyeol } from './hooks/useJanbyeol.js'
 import { myConstellation, findKindred } from './lib/stats.js'
 import { buildGraph, buildOwnThreads, traceFrom, reachOf } from './lib/graph.js'
-import { distance } from './lib/geometry.js'
+import { distance, distanceToFit } from './lib/geometry.js'
 
 /**
  * 하늘을 보는 두 가지 시점
@@ -23,18 +23,35 @@ import { distance } from './lib/geometry.js'
 /** 별빛이 몇 겹까지 번져나가는지 */
 const TRACE_DEPTH = 4
 
+/**
+ * 잔별을 누르면 그 별로 **다가갑니다.**
+ *
+ * 연결된 잔별은 은하 반대편에 있습니다(대개 1,700~2,300 단위 — 은하 반지름이
+ * 1,650이니 거의 건너편이죠). 그래서 '내 별을 크게 보기'와 '연결된 별을 함께 보기'는
+ * 좌표를 그대로 둔 채로는 동시에 성립하지 않습니다.
+ *
+ * 택한 답: 닿아 있는 잔별을 **잠시** 그 별 곁의 궤도로 끌어옵니다.
+ * 이미 '공감 성단'에서 쓰던 연출과 같은 규칙이고, 저장된 좌표는 건드리지 않습니다.
+ * 전체 은하로 돌아가면 각자의 자리로 흩어집니다.
+ */
+const ORBIT_R1 = 230 // 1겹 — 직접 닿은 잔별
+const ORBIT_R2 = 430 // 2겹 — 그 잔별이 닿은 잔별
+
 export default function App() {
   const { me, stars, ready, addStar, toggleWarm, addReply, reset } = useJanbyeol()
 
   const [selectedId, setSelectedId] = useState(null)
+  const [cardOpen, setCardOpen] = useState(false) // 카드를 닫아도 줌인은 남는다
   const [mineMode, setMineMode] = useState(false) // 나의 성단 시점인가
-  const [cluster, setCluster] = useState({ anchorId: null, ids: [] })
+  const [kindred, setKindred] = useState({ anchorId: null, ids: [] })
   const [focus, setFocus] = useState(null)
   const [ripple, setRipple] = useState(null)
   const [toast, setToast] = useState('')
   const [welcomeGone, setWelcomeGone] = useState(false)
   const [isNarrow, setIsNarrow] = useState(() => window.innerWidth <= 860)
+  const [panelOpen, setPanelOpen] = useState(true) // 모바일 바텀시트가 펼쳐져 있는가
   const toastTimer = useRef(0)
+  const cardAnchorRef = useRef(null)
 
   const reducedMotion = useMemo(
     () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
@@ -76,13 +93,13 @@ export default function App() {
       ...graph.edges.map((e) => ({ a: e.a, b: e.b, w: e.w, kind: 'bond' })),
       ...ownThreads,
     ]
-    if (cluster.anchorId) {
-      for (const id of cluster.ids) {
-        out.push({ a: cluster.anchorId, b: id, w: 2, kind: 'bond', cluster: true })
+    if (kindred.anchorId) {
+      for (const id of kindred.ids) {
+        out.push({ a: kindred.anchorId, b: id, w: 2, kind: 'bond', cluster: true })
       }
     }
     return out
-  }, [graph, ownThreads, cluster])
+  }, [graph, ownThreads, kindred])
 
   /** 누른 잔별에서 별빛이 몇 겹으로 번져나가는지 */
   const trace = useMemo(
@@ -90,6 +107,63 @@ export default function App() {
     [graph, selectedId]
   )
   const reach = useMemo(() => reachOf(trace, stars), [trace, stars])
+
+  /**
+   * 지금 어느 별 곁으로 무엇을 끌어올 것인가.
+   * 잔별을 고르면 그 별의 1겹·2겹이 궤도로 모이고, 방금 띄운 직후라면
+   * 닮은 마음들(공감 성단)이 모입니다.
+   */
+  const gather = useMemo(() => {
+    if (selectedId && trace) {
+      const ring1 = []
+      const ring2 = []
+      for (const [id, depth] of trace.depthOf) {
+        if (depth === 1) ring1.push(id)
+        else if (depth === 2) ring2.push(id)
+      }
+      if (ring1.length || ring2.length) {
+        return { anchorId: selectedId, ring1, ring2, r1: ORBIT_R1, r2: ORBIT_R2 }
+      }
+      return { anchorId: null, ring1: [], ring2: [], r1: ORBIT_R1, r2: ORBIT_R2 }
+    }
+    if (kindred.anchorId) {
+      return { anchorId: kindred.anchorId, ring1: kindred.ids, ring2: [], r1: ORBIT_R1, r2: ORBIT_R2 }
+    }
+    return { anchorId: null, ring1: [], ring2: [], r1: ORBIT_R1, r2: ORBIT_R2 }
+  }, [selectedId, trace, kindred])
+
+  const showCard = Boolean(selected && cardOpen)
+  /** 회고 시트를 접어둔 채 하늘을 보고 있는 상태 — 입력창은 그 손잡이 위로 */
+  const barOnly = isNarrow && mineMode && !panelOpen && !showCard
+
+  /**
+   * 위아래에서 화면을 가리는 UI의 높이.
+   * 이만큼 하늘의 중심을 옮겨야 별이 시트나 상단바 뒤에 숨지 않습니다.
+   */
+  const bottomInset = useMemo(() => {
+    if (!isNarrow) return 0
+    const h = window.innerHeight
+    if (showCard) return Math.min(h * 0.58, 520)
+    if (mineMode && panelOpen) return h * 0.7
+    if (mineMode) return 176 // 접힌 손잡이 + 그 위의 입력창
+    return 84
+  }, [isNarrow, showCard, mineMode, panelOpen])
+
+  const topInset = isNarrow ? 58 : 0
+
+  /** 반지름 radius의 무리가 (가려진 곳을 빼고) 화면에 들어오는 카메라 거리 */
+  const fitDistance = useCallback(
+    (radius) => {
+      const w = window.innerWidth
+      const h = window.innerHeight
+      const narrow = w <= 860
+      const usableW = narrow ? w - 32 : w - 420 // 데스크톱은 카드가 한쪽을 차지한다
+      const usableH = narrow ? h - bottomInset - 90 : h - 150
+      const margin = Math.max(110, Math.min(usableW, usableH) * 0.45)
+      return Math.max(340, Math.min(4600, distanceToFit(radius, margin)))
+    },
+    [bottomInset]
+  )
 
   const lookAt = useCallback((star, options = {}) => {
     if (!star) return
@@ -104,49 +178,53 @@ export default function App() {
   }, [])
 
   /**
-   * 잔별을 누르면 카메라가 오히려 **물러납니다.**
-   * 이 마음이 어디까지 닿아 있는지 — 은하 건너편까지 이어진 실이 한 화면에
-   * 들어와야 하니까요. 다가가는 게 아니라 시야를 넓히는 동작입니다.
+   * 잔별을 누르면 그 별이 화면의 중심이 되고, 닿아 있는 잔별들이 곁으로 모여듭니다.
+   * 카드는 그 별 옆에 떠서, 어느 별의 글인지가 눈으로 이어집니다.
    */
   const handleSelect = useCallback(
     (id) => {
       setWelcomeGone(true)
-      setSelectedId(id)
-      if (!id) return
-      const star = stars.find((s) => s.id === id)
-      if (!star) return
 
-      const reached = traceFrom(graph.adj, id, TRACE_DEPTH)
-      const nodes = [...reached.depthOf.keys()]
-        .map((nid) => stars.find((s) => s.id === nid))
-        .filter(Boolean)
-
-      if (nodes.length <= 1) {
-        lookAt(star, { scale: 1, dist: 520, hold: 7000 })
+      if (!id) {
+        setSelectedId(null)
+        setCardOpen(false)
         return
       }
 
-      const sum = nodes.reduce(
-        (acc, s) => ({ x: acc.x + s.pos.x, y: acc.y + s.pos.y, z: acc.z + s.pos.z }),
-        { x: 0, y: 0, z: 0 }
-      )
-      const mid = { x: sum.x / nodes.length, y: sum.y / nodes.length, z: sum.z / nodes.length }
-      // 누른 잔별 쪽에 조금 더 무게를 둔다 — 이야기의 출발점이니까
-      const target = {
-        x: star.pos.x * 0.42 + mid.x * 0.58,
-        y: star.pos.y * 0.42 + mid.y * 0.58,
-        z: star.pos.z * 0.42 + mid.z * 0.58,
+      const star = stars.find((s) => s.id === id)
+      if (!star) return
+
+      // 이미 고른 별을 다시 누르면 카메라는 그대로 두고 카드만 다시 연다
+      if (id === selectedId) {
+        setCardOpen(true)
+        return
       }
-      const far = Math.max(...nodes.map((s) => distance(s.pos, target)))
+
+      setSelectedId(id)
+      setCardOpen(true)
+      setKindred({ anchorId: null, ids: [] })
+      if (isNarrow) setPanelOpen(false)
+
+      const reached = traceFrom(graph.adj, id, TRACE_DEPTH)
+      let outer = 0
+      for (const depth of reached.depthOf.values()) {
+        if (depth === 1) outer = Math.max(outer, ORBIT_R1)
+        else if (depth === 2) outer = Math.max(outer, ORBIT_R2)
+      }
+
       setFocus({
-        pos: target,
-        dist: Math.max(520, Math.min(4200, far * 2.4 + 320)),
-        hold: 10000,
+        pos: star.pos, // 고른 별이 곧 화면의 중심
+        dist: outer ? fitDistance(outer * 1.08) : 420,
+        pitch: 0.82,
+        hold: 14000,
         key: Date.now() + Math.random(),
       })
     },
-    [stars, graph, lookAt]
+    [stars, selectedId, graph, isNarrow, fitDistance]
   )
+
+  /** 카드를 닫아도 줌인·궤도·연결은 그대로 남는다 */
+  const closeCard = useCallback(() => setCardOpen(false), [])
 
   /* ---------- 시점 전환 ---------- */
 
@@ -154,6 +232,10 @@ export default function App() {
   const enterMine = useCallback(() => {
     setWelcomeGone(true)
     setMineMode(true)
+    // 좁은 화면에서는 손잡이만 남기고 접어 둔다 — 먼저 보여야 할 건 하늘이니까
+    setPanelOpen(window.innerWidth > 860)
+    setSelectedId(null)
+    setCardOpen(false)
     const mine = constellation.mine
     if (mine.length === 0) {
       say('아직 띄운 잔별이 없어요. 오늘의 한 줄을 남겨보세요.')
@@ -164,22 +246,23 @@ export default function App() {
       { x: 0, y: 0, z: 0 }
     )
     const centroid = { x: sum.x / mine.length, y: sum.y / mine.length, z: sum.z / mine.length }
-    const spread = Math.max(...mine.map((s) => distance(s.pos, centroid)))
+    const spread = Math.max(60, ...mine.map((s) => distance(s.pos, centroid)))
     setFocus({
       pos: centroid,
-      dist: Math.max(300, Math.min(3800, spread * 2.4 + 260)),
+      dist: fitDistance(spread * 1.25),
       pitch: 0.72,
       hold: 9000,
       key: Date.now(),
     })
-    say('내가 띄운 잔별만 밝혀 두었어요')
-  }, [constellation, say])
+    say('내가 띄운 잔별만 밝혀 두었어요 — 별 하나를 눌러보세요')
+  }, [constellation, say, fitDistance])
 
   /** 전체 은하로 — 모두의 잔별이 다시 떠오르고 카메라가 제자리로 */
   const backToCosmos = useCallback(() => {
     setSelectedId(null)
+    setCardOpen(false)
     setMineMode(false)
-    setCluster({ anchorId: null, ids: [] })
+    setKindred({ anchorId: null, ids: [] })
     setFocus({ pos: { x: 0, y: 0, z: 0 }, dist: 3400, pitch: 0.92, hold: 0, key: Date.now() })
     setWelcomeGone(true)
   }, [])
@@ -195,14 +278,19 @@ export default function App() {
     async ({ text, photo }) => {
       setWelcomeGone(true)
       setMineMode(false)
+      setSelectedId(null)
+      setCardOpen(false)
       const star = await addStar({ text, photo })
-      const kindred = findKindred(stars, star, 5)
-      setCluster({ anchorId: star.id, ids: kindred.map((s) => s.id) })
-      lookAt(star, { scale: 1, dist: 460, pitch: 0.62, hold: 5200 })
+      const similar = findKindred(stars, star, 5)
+      setKindred({ anchorId: star.id, ids: similar.map((s) => s.id) })
+      lookAt(star, { scale: 1, dist: fitDistance(ORBIT_R1 * 1.15), pitch: 0.7, hold: 5200 })
       say('잔별이 떠올랐어요. 닮은 마음들이 모여듭니다.')
-      setTimeout(() => setSelectedId(star.id), 950)
+      setTimeout(() => {
+        setSelectedId(star.id)
+        setCardOpen(true)
+      }, 950)
     },
-    [addStar, stars, lookAt, say]
+    [addStar, stars, lookAt, say, fitDistance]
   )
 
   const handleWarm = useCallback(
@@ -227,8 +315,8 @@ export default function App() {
     [addReply, say]
   )
 
-  // 좁은 화면에서는 카드와 패널이 같은 자리를 쓰므로 한 번에 하나만 보인다
-  const panelVisible = mineMode && !(isNarrow && selected)
+  // 좁은 화면에서는 카드와 회고 패널이 같은 자리를 쓰므로 한 번에 하나만 펼친다
+  const panelVisible = mineMode && !(isNarrow && showCard)
 
   return (
     <>
@@ -236,8 +324,7 @@ export default function App() {
         stars={stars}
         links={links}
         selectedId={selectedId}
-        clusterIds={cluster.ids}
-        clusterAnchorId={cluster.anchorId}
+        gather={gather}
         focus={focus}
         ripple={ripple}
         trace={trace}
@@ -245,11 +332,21 @@ export default function App() {
         mineMode={mineMode}
         onSelect={handleSelect}
         reducedMotion={reducedMotion}
+        cardAnchorRef={cardAnchorRef}
+        cardOpen={showCard}
+        anchored={!isNarrow}
+        bottomInset={bottomInset}
+        topInset={topInset}
       />
 
-      <div className="ui">
+      {/* 좁은 화면에서 시트가 올라오면 입력창은 자리를 비켜준다 */}
+      <div
+        className={`ui${isNarrow && (showCard || (mineMode && panelOpen)) ? ' cardup' : ''}${
+          barOnly ? ' liftbottom' : ''
+        }`}
+      >
         <TopBar
-          clusterCount={cluster.ids.length}
+          clusterCount={kindred.ids.length}
           mineMode={mineMode}
           onToggleMine={toggleMine}
           onCosmos={backToCosmos}
@@ -261,30 +358,38 @@ export default function App() {
           <p className="creed">
             별거 아닌 줄 알았던 당신의 오늘이, 이곳에선 누군가의 밤을 비추는 잔별이 됩니다.
           </p>
-          <Composer onSubmit={handleCreate} onFocus={() => setWelcomeGone(true)} />
+          <Composer onSubmit={handleCreate} onFocus={() => setWelcomeGone(true)} compact={isNarrow} />
         </div>
       </div>
 
-      {selected && (
-        <StarCard
-          star={selected}
-          me={me}
-          reach={reach}
-          onWarm={handleWarm}
-          onReply={handleReply}
-          onClose={() => setSelectedId(null)}
-        />
-      )}
+      {/* 카드는 고른 별 옆에 뜹니다. 좌표는 Galaxy가 매 프레임 직접 써넣습니다. */}
+      <div className={`cardwrap${showCard ? ' on' : ''}`} ref={cardAnchorRef} aria-hidden={!showCard}>
+        {selected && (
+          <StarCard
+            star={selected}
+            me={me}
+            reach={reach}
+            open={showCard}
+            onWarm={handleWarm}
+            onReply={handleReply}
+            onClose={closeCard}
+          />
+        )}
+      </div>
 
       {panelVisible && (
         <ConstellationPanel
           data={constellation}
+          sheet={isNarrow}
+          open={!isNarrow || panelOpen}
+          onToggle={() => setPanelOpen((v) => !v)}
           onClose={backToCosmos}
           onSelectStar={handleSelect}
           onReset={() => {
             reset()
             setSelectedId(null)
-            setCluster({ anchorId: null, ids: [] })
+            setCardOpen(false)
+            setKindred({ anchorId: null, ids: [] })
             setMineMode(false)
             say('하늘을 처음 상태로 되돌렸어요')
           }}

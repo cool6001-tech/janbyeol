@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react'
-import { project, ringSlot } from '../lib/geometry.js'
+import { useEffect, useMemo, useRef } from 'react'
+import { project, orbitSlot, FOCAL } from '../lib/geometry.js'
 import { buildAmbient, buildClouds, clusterSiteFor, CLUSTER_R } from '../lib/galaxy.js'
 import { ageFade, isAnniversary } from '../lib/time.js'
 import { hasPhoto } from '../lib/photo.js'
@@ -26,8 +26,7 @@ export default function Galaxy({
   stars,
   links,
   selectedId,
-  clusterIds,
-  clusterAnchorId,
+  gather,
   focus,
   ripple,
   trace,
@@ -35,11 +34,22 @@ export default function Galaxy({
   mineMode,
   onSelect,
   reducedMotion,
+  cardAnchorRef,
+  cardOpen,
+  anchored,
+  bottomInset,
+  topInset = 0,
 }) {
   const canvasRef = useRef(null)
   const propsRef = useRef(null)
   const sceneRef = useRef({
-    cam: { yaw: 0.4, pitch: 0.92, dist: 3400, tYaw: 0.4, tPitch: 0.92, tDist: 3400, tx: 0, ty: 0, tz: 0, ttx: 0, tty: 0, ttz: 0, focal: 820 },
+    cam: {
+      yaw: 0.4, pitch: 0.92, dist: 3400,
+      tYaw: 0.4, tPitch: 0.92, tDist: 3400,
+      tx: 0, ty: 0, tz: 0, ttx: 0, tty: 0, ttz: 0,
+      ox: 0, oy: 0, // 아래를 시트가 가리면 하늘의 중심을 위로 올린다
+      focal: FOCAL,
+    },
     runtime: new Map(),
     ambient: null,
     clouds: null,
@@ -50,17 +60,32 @@ export default function Galaxy({
     idleTimer: 0,
   })
 
+  /** 어느 별이 어느 궤도의 몇 번째 자리로 끌려오는가 */
+  const gatherSlots = useMemo(() => {
+    const map = new Map()
+    if (!gather?.anchorId) return map
+    const { ring1 = [], ring2 = [], r1 = 230, r2 = 430 } = gather
+    ring1.forEach((id, i) => map.set(id, { r: r1, i, n: ring1.length, seed: 0.45 }))
+    ring2.forEach((id, i) => map.set(id, { r: r2, i, n: ring2.length, seed: 1.25 }))
+    return map
+  }, [gather])
+
   propsRef.current = {
     stars,
     links,
     selectedId,
-    clusterIds,
-    clusterAnchorId,
+    gather,
+    gatherSlots,
     trace,
     myId,
     mineMode,
     onSelect,
     reducedMotion,
+    cardAnchorRef,
+    cardOpen,
+    anchored,
+    bottomInset,
+    topInset,
   }
 
   /* 은하는 한 번만 만든다 (같은 씨앗 → 언제나 같은 하늘) */
@@ -188,6 +213,11 @@ export default function Galaxy({
       cam.ty += (cam.tty - cam.ty) * 0.05
       cam.tz += (cam.ttz - cam.tz) * 0.05
 
+      // 위아래 UI가 가린 만큼 하늘의 중심을 옮긴다 — 남은 띠의 한가운데로.
+      // 좁은 화면에서 별이 시트 뒤에 숨지 않게 하는 건 이 두 줄입니다.
+      const oyTarget = ((p.topInset || 0) - (p.bottomInset || 0)) / 2
+      cam.oy += (oyTarget - cam.oy) * 0.08
+
       ctx.clearRect(0, 0, width, height)
       ctx.globalCompositeOperation = 'lighter'
 
@@ -240,8 +270,8 @@ export default function Galaxy({
       const sy = Math.sin(cam.yaw)
       const cp = Math.cos(cam.pitch)
       const sp = Math.sin(cam.pitch)
-      const halfW = width / 2
-      const halfH = height / 2
+      const halfW = width / 2 + cam.ox
+      const halfH = height / 2 + cam.oy
 
       for (let i = 0; i < scene.ambient.length; i++) {
         const a = scene.ambient[i]
@@ -277,33 +307,34 @@ export default function Galaxy({
         }
       }
 
-      // 별의 현재 위치를 먼저 정리한다 (성단이 만들어지면 잠시 끌려온다)
+      /* 별의 현재 위치를 먼저 정리한다.
+         고른 잔별이 있으면, 닿아 있는 잔별들이 그 별 곁의 궤도로 끌려옵니다.
+         저장된 좌표(star.pos)는 그대로예요 — 화면 위에서만 잠시 모이는 겁니다. */
       const byId = new Map()
-      const clusterSet = new Set(p.clusterIds || [])
-      const anchor = p.clusterIds?.length
-        ? p.stars.find((s) => s.id === p.clusterAnchorId)
+      const slots = p.gatherSlots
+      const anchor = p.gather?.anchorId
+        ? p.stars.find((s) => s.id === p.gather.anchorId)
         : null
       const anchorPos = anchor ? anchor.pos : null
-      const clusterList = [...clusterSet]
 
       for (const star of p.stars) {
         const rt = runtimeOf(star)
         let target = star.pos
-        if (anchorPos && clusterSet.has(star.id)) {
-          const idx = clusterList.indexOf(star.id)
-          target = ringSlot(anchorPos, idx, clusterList.length, 0.7)
-        }
-        rt.x += (target.x - rt.x) * 0.035
-        rt.y += (target.y - rt.y) * 0.035
-        rt.z += (target.z - rt.z) * 0.035
+        const slot = anchorPos && star.id !== anchor.id ? slots.get(star.id) : null
+        if (slot) target = orbitSlot(anchorPos, slot.i, slot.n, slot.r, slot.seed)
+        const ease = slot ? 0.055 : 0.035
+        rt.x += (target.x - rt.x) * ease
+        rt.y += (target.y - rt.y) * ease
+        rt.z += (target.z - rt.z) * ease
 
         // 어떤 잔별이 밝고 어떤 잔별이 저무는가
         let dimTarget = 1
         if (traced) {
-          // 별빛이 번져나가는 중 — 아직 닿지 않은 겹은 어둡게 기다린다
+          // 별빛이 번져나가는 중 — 아직 닿지 않은 겹은 어둡게 기다린다.
+          // 겹이 깊어질수록 더 저물게 해서, 고른 별과 그 곁이 먼저 읽히도록.
           const depth = traced.get(star.id)
           const arrived = depth !== undefined && traceElapsed >= (depth - 1) * REVEAL_STEP
-          dimTarget = arrived ? 1 - 0.12 * depth : 0.1
+          dimTarget = arrived ? Math.max(0.24, 1 - 0.19 * depth) : 0.08
         } else if (p.mineMode && star.authorId !== p.myId) {
           dimTarget = 0.12
         }
@@ -425,11 +456,17 @@ export default function Galaxy({
           twinkle * photoTwinkle * born * fade * rt.dim * (0.78 + 0.34 * rt.warm) *
           (selected ? 1.3 : 1) * (anniversary ? 1.25 : 1)
 
+        /* 크기의 상한.
+           모든 별을 4.4px로 눌러두면 아무리 다가가도 별이 커지지 않습니다.
+           고른 별과 곁으로 끌려온 별에만 상한을 풀어, 줌인이 눈에 보이게 합니다. */
+        const inOrbit = slots.has(star.id)
+        const cap = selected ? 11 : inOrbit ? 7 : 4.4
+
         let rad = rt.size * Math.max(0.4, pr.k * 22) * (0.92 + 0.4 * rt.warm) * born
         rad *= selected ? 1.45 : 1
         rad *= 0.6 + 0.4 * fade
         rad *= 0.55 + 0.45 * rt.dim
-        rad = Math.max(0.9, Math.min(rad, 4.4))
+        rad = Math.max(0.9, Math.min(rad, cap))
 
         // 헤일로
         const halo = rad * (hasPhoto(star) ? 11 : 8) * (0.8 + 0.5 * rt.warm)
@@ -479,10 +516,18 @@ export default function Galaxy({
         }
 
         if (selected) {
-          ctx.strokeStyle = `rgba(255,214,170,${(0.5 + 0.2 * Math.sin(t * 3)).toFixed(3)})`
+          // 지금 보고 있는 잔별 — 또렷한 고리 하나와 숨 쉬는 고리 하나
+          ctx.strokeStyle = `rgba(255,214,170,${(0.62 + 0.18 * Math.sin(t * 3)).toFixed(3)})`
+          ctx.lineWidth = 1.4
+          ctx.beginPath()
+          ctx.arc(pr.sx, pr.sy, rad + 10, 0, 6.283)
+          ctx.stroke()
+
+          const pulse = reduced ? 0 : (t * 0.55) % 1
+          ctx.strokeStyle = `rgba(255,196,140,${(0.3 * (1 - pulse)).toFixed(3)})`
           ctx.lineWidth = 1
           ctx.beginPath()
-          ctx.arc(pr.sx, pr.sy, rad + 9, 0, 6.283)
+          ctx.arc(pr.sx, pr.sy, rad + 12 + pulse * 34, 0, 6.283)
           ctx.stroke()
         }
         if (star.authorId === p.myId) {
@@ -490,6 +535,40 @@ export default function Galaxy({
           ctx.lineWidth = 1
           ctx.beginPath()
           ctx.arc(pr.sx, pr.sy, rad + 16, 0, 6.283)
+          ctx.stroke()
+        }
+      }
+
+      /* 카드는 고른 별 옆에 떠 있습니다.
+         React가 매 프레임 다시 그리면 입력창이 버벅이므로, 좌표만 여기서
+         DOM에 직접 써넣습니다. 그리고 별과 카드를 얇은 꼬리선으로 잇습니다. */
+      const wrap = p.cardAnchorRef?.current
+      const anchorView = p.cardOpen && p.selectedId ? byId.get(p.selectedId) : null
+      if (wrap && p.anchored && anchorView?.pr) {
+        const cardEl = wrap.firstElementChild
+        if (cardEl) {
+          if (now - (scene.cardMeasured || 0) > 240) {
+            scene.cardW = cardEl.offsetWidth || 340
+            scene.cardH = cardEl.offsetHeight || 320
+            scene.cardMeasured = now
+          }
+          const cw = scene.cardW || 340
+          const ch = scene.cardH || 320
+          const GAP = 46
+          const toRight = anchorView.pr.sx + GAP + cw <= width - 16
+          const x = toRight
+            ? Math.min(width - cw - 16, anchorView.pr.sx + GAP)
+            : Math.max(16, anchorView.pr.sx - GAP - cw)
+          const y = Math.max(72, Math.min(height - ch - 20, anchorView.pr.sy - ch / 2))
+          wrap.style.transform = `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0)`
+
+          const ex = toRight ? x : x + cw
+          const ey = Math.max(y + 20, Math.min(y + ch - 20, anchorView.pr.sy))
+          ctx.strokeStyle = 'rgba(255,206,158,0.3)'
+          ctx.lineWidth = 1
+          ctx.beginPath()
+          ctx.moveTo(anchorView.pr.sx, anchorView.pr.sy)
+          ctx.lineTo(ex, ey)
           ctx.stroke()
         }
       }
@@ -516,18 +595,52 @@ export default function Galaxy({
     }
     raf = requestAnimationFrame(frame)
 
-    /* ----- 조작 ----- */
+    /* ----- 조작 -----
+       손가락 하나면 돌리고, 둘이면 벌려서 다가갑니다.
+       예전에는 휠 이벤트만 있어서 휴대폰에서는 확대·축소가 아예 안 됐습니다. */
+    const pointers = new Map()
+    const clampDist = (v) => Math.max(260, Math.min(9000, v))
     let drag = null
     let moved = 0
+    let pinch = null
+
+    const coarse = window.matchMedia?.('(pointer: coarse)').matches
+    const PICK_R = coarse ? 42 : 28
 
     const onDown = (e) => {
-      drag = { x: e.clientX, y: e.clientY }
-      moved = 0
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
       scene.idleSpin = false
-      canvas.classList.add('dragging')
-      canvas.setPointerCapture(e.pointerId)
+      try {
+        canvas.setPointerCapture(e.pointerId)
+      } catch {
+        /* 이미 놓인 포인터 — 무시 */
+      }
+      if (pointers.size === 1) {
+        drag = { x: e.clientX, y: e.clientY }
+        moved = 0
+        canvas.classList.add('dragging')
+      } else if (pointers.size === 2) {
+        drag = null
+        const [a, b] = [...pointers.values()]
+        pinch = { span: Math.max(12, Math.hypot(a.x - b.x, a.y - b.y)), dist: scene.cam.tDist }
+      }
     }
+
     const onMove = (e) => {
+      if (!pointers.has(e.pointerId)) return
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
+
+      if (pinch && pointers.size >= 2) {
+        const [a, b] = [...pointers.values()]
+        const span = Math.hypot(a.x - b.x, a.y - b.y)
+        if (span > 12) {
+          scene.cam.tDist = clampDist(pinch.dist * (pinch.span / span))
+          scene.idleTimer = performance.now() + 2600
+        }
+        moved = 999 // 핀치는 탭이 아니다
+        return
+      }
+
       if (!drag) return
       const dx = e.clientX - drag.x
       const dy = e.clientY - drag.y
@@ -537,16 +650,30 @@ export default function Galaxy({
       drag.x = e.clientX
       drag.y = e.clientY
     }
-    const onUp = (e) => {
-      canvas.classList.remove('dragging')
-      if (drag && moved < 6) pick(e.clientX, e.clientY)
-      drag = null
-      scene.idleTimer = performance.now() + 2600
+
+    const release = (e, tapped) => {
+      const had = pointers.delete(e.pointerId)
+      if (pointers.size < 2) pinch = null
+      if (pointers.size === 0) {
+        canvas.classList.remove('dragging')
+        if (tapped && had && drag && moved < 8) pick(e.clientX, e.clientY)
+        drag = null
+        scene.idleTimer = performance.now() + 2600
+      } else if (pointers.size === 1) {
+        // 핀치에서 손가락 하나가 떨어진 뒤 — 남은 손가락으로 이어서 돌린다
+        const [only] = [...pointers.values()]
+        drag = { x: only.x, y: only.y }
+        moved = 999
+      }
     }
+
+    const onUp = (e) => release(e, true)
+    const onCancel = (e) => release(e, false)
+
     const onWheel = (e) => {
       e.preventDefault()
       scene.idleSpin = false
-      scene.cam.tDist = Math.max(260, Math.min(9000, scene.cam.tDist * (1 + (e.deltaY > 0 ? 0.12 : -0.12))))
+      scene.cam.tDist = clampDist(scene.cam.tDist * (1 + (e.deltaY > 0 ? 0.12 : -0.12)))
       scene.idleTimer = performance.now() + 2600
     }
 
@@ -555,7 +682,7 @@ export default function Galaxy({
       const x = cx - rect.left
       const y = cy - rect.top
       let best = null
-      let bestDist = 26
+      let bestDist = PICK_R
       for (const v of scene.lastProjected?.values() || []) {
         if (!v.pr) continue
         const d = Math.hypot(v.pr.sx - x, v.pr.sy - y)
@@ -570,7 +697,7 @@ export default function Galaxy({
     canvas.addEventListener('pointerdown', onDown)
     canvas.addEventListener('pointermove', onMove)
     canvas.addEventListener('pointerup', onUp)
-    canvas.addEventListener('pointercancel', () => (drag = null))
+    canvas.addEventListener('pointercancel', onCancel)
     canvas.addEventListener('wheel', onWheel, { passive: false })
 
     return () => {
@@ -579,6 +706,7 @@ export default function Galaxy({
       canvas.removeEventListener('pointerdown', onDown)
       canvas.removeEventListener('pointermove', onMove)
       canvas.removeEventListener('pointerup', onUp)
+      canvas.removeEventListener('pointercancel', onCancel)
       canvas.removeEventListener('wheel', onWheel)
     }
   }, [])

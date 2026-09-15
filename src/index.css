@@ -328,30 +328,47 @@ ul {
   color: var(--star);
 }
 
-/* ---------------- 잔별 카드 ---------------- */
-.card {
+/* ---------------- 잔별 카드 ----------------
+   카드는 고른 별 **옆에** 뜹니다. 위치는 Galaxy가 매 프레임 transform으로
+   써넣습니다(React를 다시 그리면 답글 입력창이 버벅이니까요).
+   좁은 화면에서는 아래 미디어 쿼리가 바텀시트로 바꿔 답니다. */
+.cardwrap {
   position: fixed;
-  right: 20px;
-  top: 74px;
-  width: 352px;
-  max-height: calc(100vh - 190px);
+  left: 0;
+  top: 0;
+  z-index: 30;
+  will-change: transform;
+  pointer-events: none;
+}
+.cardwrap.on {
+  pointer-events: auto;
+}
+.card {
+  position: relative;
+  width: 344px;
+  max-height: min(68vh, 560px);
   display: flex;
   flex-direction: column;
   border: 1px solid var(--line);
   border-radius: 20px;
   overflow: hidden;
-  background: linear-gradient(180deg, rgba(14, 19, 35, 0.86), rgba(7, 10, 20, 0.92));
+  background: linear-gradient(180deg, rgba(14, 19, 35, 0.9), rgba(7, 10, 20, 0.94));
   backdrop-filter: blur(22px);
   box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(180, 200, 255, 0.07);
   opacity: 0;
-  transform: translateY(10px) scale(0.985);
+  transform: translateY(8px) scale(0.98);
+  transform-origin: left center;
   pointer-events: none;
-  transition: opacity 0.45s ease, transform 0.45s cubic-bezier(0.2, 0.7, 0.2, 1);
+  transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 .card.open {
   opacity: 1;
   transform: none;
   pointer-events: auto;
+}
+/* 손잡이는 바텀시트일 때만 */
+.card > .grip {
+  display: none;
 }
 .cardhead {
   position: relative;
@@ -615,6 +632,7 @@ ul {
   top: 74px;
   width: 340px;
   max-height: calc(100vh - 190px);
+  z-index: 25;
   display: flex;
   flex-direction: column;
   border: 1px solid var(--line);
@@ -631,6 +649,12 @@ ul {
   gap: 12px;
   padding: 18px 18px 14px;
   border-bottom: 1px solid var(--line);
+}
+.paneltitle {
+  min-width: 0;
+}
+.panel .grab {
+  display: none;
 }
 .panelhead h2 {
   font-family: var(--serif);
@@ -894,6 +918,7 @@ ul {
 /* ---------------- 토스트 ---------------- */
 .toast {
   position: fixed;
+  z-index: 40;
   left: 50%;
   bottom: 206px;
   transform: translate(-50%, 8px);
@@ -915,27 +940,156 @@ ul {
   transform: translate(-50%, 0);
 }
 
-/* ---------------- 좁은 화면 ---------------- */
+/* ---------------- 좁은 화면 ----------------
+   예전에는 카드와 회고 패널이 화면 하단 52%를 덮고 입력창이 150px를 더 먹어서
+   하늘이 위쪽 4분의 1만 남았습니다. 그래서 답답했어요.
+
+   이제 둘 다 아래에서 올라오는 시트가 되고, 평소에는 접혀 있습니다.
+   가려진 높이만큼 카메라가 하늘의 중심을 위로 올려 별이 시트 뒤에 숨지 않습니다.
+--------------------------------------------------------------- */
 @media (max-width: 860px) {
-  .card,
-  .panel {
-    right: 12px;
-    left: 12px;
-    width: auto;
-    top: auto;
-    bottom: 150px;
-    max-height: 52vh;
+  .creed {
+    display: none;
   }
   .cardhead.haspic {
     padding-top: 82px;
   }
-  .creed {
+
+  /* ----- 잔별 카드 = 바텀시트 ----- */
+  .cardwrap {
+    left: 0;
+    right: 0;
+    top: auto;
+    bottom: 0;
+    transform: none !important;
+  }
+  .card {
+    width: auto;
+    max-height: min(58vh, 520px);
+    border-radius: 22px 22px 0 0;
+    border-bottom: 0;
+    transform: translateY(16px);
+    transform-origin: bottom center;
+    padding-top: 6px;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .card > .grip {
+    display: block;
+    width: 42px;
+    height: 4px;
+    margin: 6px auto 2px;
+    border-radius: 999px;
+    background: rgba(150, 170, 215, 0.34);
+  }
+  .cardhead {
+    padding: 14px 18px 14px;
+  }
+  .close {
+    right: 10px;
+    top: 14px;
+    width: 32px;
+    height: 32px;
+  }
+
+  /* ----- 나의 성단 = 접히는 바텀시트 ----- */
+  .panel {
+    left: 0;
+    right: 0;
+    top: auto;
+    bottom: 0;
+    width: auto;
+    height: 70vh;
+    max-height: 70vh;
+    border-radius: 22px 22px 0 0;
+    border-bottom: 0;
+    transform: translateY(calc(100% - 84px));
+    transition: transform 0.42s cubic-bezier(0.2, 0.7, 0.2, 1);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .panel.open {
+    transform: translateY(0);
+  }
+  .panel .panelhead {
+    position: relative;
+    align-items: center;
+    padding: 6px 16px 12px;
+  }
+  .panel .grab {
+    display: block;
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 38px;
+    border: 0;
+    background: none;
+    cursor: pointer;
+    touch-action: none; /* 위아래로 쓸어 여닫기 */
+  }
+  .panel .grab .grip {
+    display: block;
+    width: 42px;
+    height: 4px;
+    margin: 9px auto 0;
+    border-radius: 999px;
+    background: rgba(150, 170, 215, 0.34);
+  }
+  .paneltitle {
+    padding-top: 22px;
+  }
+  .panelbody {
+    padding: 14px 16px 22px;
+  }
+
+  /* ----- 입력창은 평소에 한 줄 ----- */
+  .bottom {
+    padding: 0 12px 12px;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+  .composer.compact {
+    border-radius: 16px;
+    padding: 8px 10px;
+  }
+  .composer.compact textarea {
+    font-size: 15px;
+    line-height: 1.6;
+    min-height: 26px;
+  }
+  .composer.compact.folded .crow,
+  .composer.compact.folded .thumb {
     display: none;
   }
+  /* 시트가 펼쳐져 있으면 입력창은 비켜주고, 손잡이만 있으면 그 위로 올라간다 */
+  .ui.cardup .bottom {
+    display: none;
+  }
+  .ui.liftbottom .bottom {
+    padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* 아래는 시트가 차지하므로 알림은 위쪽으로 */
   .toast {
-    bottom: 116px;
+    bottom: auto;
+    top: 72px;
     font-size: var(--fs-xs);
     max-width: calc(100vw - 48px);
+  }
+  .toast.on {
+    transform: translate(-50%, 0);
+  }
+
+  /* 손가락으로 누르기 좋게 */
+  .chip {
+    padding: 9px 14px;
+  }
+  .mylist button {
+    padding: 13px 0;
+  }
+  .replybar {
+    padding: 12px 14px 14px;
+  }
+  .replybar input {
+    font-size: 15px;
   }
 }
 

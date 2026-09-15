@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import { monthLabel, relativeWhen, yearsAgo } from '../lib/time.js'
 import { subjectParticle } from '../lib/korean.js'
 
@@ -5,18 +6,73 @@ import { subjectParticle } from '../lib/korean.js'
  * 나의 성단 — 저장된 기록이 회고가 되는 화면
  * 차트는 한 가지 색만 씁니다. 길이가 크기를 말하니 색까지 일할 필요가 없어요.
  */
-export default function ConstellationPanel({ data, onClose, onSelectStar, onReset }) {
+export default function ConstellationPanel({
+  data,
+  sheet = false,
+  open = true,
+  onToggle,
+  onClose,
+  onSelectStar,
+  onReset,
+}) {
   const { count, warmth, starlight, tagRanking, months, brightest, anniversaries } = data
   const maxTag = Math.max(1, ...tagRanking.map((t) => t.count))
   const maxMonth = Math.max(1, ...months.map((m) => m.count))
   const topTag = tagRanking[0]
 
+  /* 손잡이는 톡 눌러도, 위아래로 쓸어도 열리고 닫힙니다.
+     손잡이 모양을 보면 사람들은 대개 끌어올리려 하니까요. */
+  const swipe = useRef(null)
+  const onDown = (e) => {
+    swipe.current = { y: e.clientY, dy: 0 }
+    e.currentTarget.setPointerCapture?.(e.pointerId)
+  }
+  const onMove = (e) => {
+    if (swipe.current) swipe.current.dy = e.clientY - swipe.current.y
+  }
+  const onUp = () => {
+    const s = swipe.current
+    swipe.current = null
+    if (!s) return
+    if (Math.abs(s.dy) < 10) onToggle?.()
+    else if (s.dy < -26 && !open) onToggle?.()
+    else if (s.dy > 26 && open) onToggle?.()
+  }
+
   return (
-    <aside className="panel" aria-label="나의 성단">
+    <aside
+      className={`panel${sheet ? ' sheet' : ''}${open ? ' open' : ''}`}
+      aria-label="나의 성단"
+    >
+      {/* 좁은 화면에서는 손잡이만 남기고 접힙니다 — 평소엔 하늘이 화면 전체 */}
       <header className="panelhead">
-        <div>
+        {sheet && (
+          <button
+            className="grab"
+            type="button"
+            onPointerDown={onDown}
+            onPointerMove={onMove}
+            onPointerUp={onUp}
+            onPointerCancel={() => (swipe.current = null)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                onToggle?.()
+              }
+            }}
+            aria-expanded={open}
+            aria-label={open ? '회고 접기' : '회고 펼치기'}
+          >
+            <span className="grip" />
+          </button>
+        )}
+        <div className="paneltitle">
           <h2>나의 성단</h2>
-          <p>지금 하늘에는 내가 띄운 잔별만 밝혀져 있어요</p>
+          <p>
+            {sheet && !open
+              ? `잔별 ${count} · 온기 ${warmth} — 끌어올리면 회고`
+              : '지금 하늘에는 내가 띄운 잔별만 밝혀져 있어요'}
+          </p>
         </div>
         <button className="close static" onClick={onClose} aria-label="전체 은하로 돌아가기" title="전체 은하로">
           ×
