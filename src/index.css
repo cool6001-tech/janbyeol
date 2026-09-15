@@ -213,12 +213,38 @@ ul {
   text-shadow: 0 2px 14px rgba(0, 0, 0, 0.9), 0 0 34px rgba(120, 150, 230, 0.4);
 }
 
-/* 눌러보라는 말이니 눌리는 것과 같은 색으로 — 별빛의 온기 색 */
-.welcome small {
+.welcome.gone {
+  opacity: 0;
+}
+
+/* 안내는 문구와 따로 떠 있습니다 — 좁은 화면에서 은하 아래로 비켜 세우려고요.
+   눌러보라는 말이니 눌렀을 때 켜지는 색과 같은 색으로 씁니다. */
+.hint {
+  position: fixed;
+  left: 50%;
+  top: calc(38% + 60px);
+  transform: translateX(-50%);
+  text-align: center;
+  pointer-events: none;
+  transition: opacity 1.6s ease;
+}
+.hint::before {
+  content: '';
+  position: absolute;
+  inset: -26px -44px;
+  background: radial-gradient(
+    52% 56% at 50% 50%,
+    rgba(3, 4, 9, 0.5),
+    rgba(3, 4, 9, 0.22) 50%,
+    rgba(3, 4, 9, 0) 78%
+  );
+}
+.hint small {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  margin-top: 26px;
+  white-space: nowrap;
   font-family: var(--sans);
   font-size: 12.5px;
   letter-spacing: 0.16em;
@@ -227,14 +253,14 @@ ul {
     0 2px 10px rgba(0, 0, 0, 0.95);
   animation: hintbreathe 3.4s ease-in-out infinite;
 }
-.welcome small::before,
-.welcome small::after {
+.hint small::before,
+.hint small::after {
   content: '';
   width: 20px;
   height: 1px;
   background: linear-gradient(90deg, rgba(255, 176, 103, 0), rgba(255, 176, 103, 0.6));
 }
-.welcome small::after {
+.hint small::after {
   transform: scaleX(-1);
 }
 @keyframes hintbreathe {
@@ -246,7 +272,7 @@ ul {
     opacity: 1;
   }
 }
-.welcome.gone {
+.hint.gone {
   opacity: 0;
 }
 
@@ -999,6 +1025,21 @@ ul {
     padding-top: 82px;
   }
 
+  /* 첫 화면 — 문구는 은하 위, 안내는 은하 아래. 자리는 App이 계산해 넘깁니다 */
+  .welcome {
+    width: calc(100vw - 40px);
+  }
+  .welcome p {
+    font-size: 17px;
+    line-height: 1.95;
+  }
+  .welcome::before {
+    inset: -30% -10%;
+  }
+  .hint small {
+    font-size: 13px;
+  }
+
   /* ----- 잔별 카드 = 바텀시트 ----- */
   .cardwrap {
     left: 0;
@@ -1152,7 +1193,8 @@ ul {
   .toast {
     transition-duration: 0.01ms;
   }
-  .welcome small {
+  .hint,
+  .hint small {
     animation: none;
     opacity: 1;
   }

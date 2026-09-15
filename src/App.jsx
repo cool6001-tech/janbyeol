@@ -9,7 +9,7 @@ import ConstellationPanel from './components/ConstellationPanel.jsx'
 import { useJanbyeol } from './hooks/useJanbyeol.js'
 import { myConstellation, findKindred } from './lib/stats.js'
 import { buildGraph, buildOwnThreads, traceFrom, reachOf } from './lib/graph.js'
-import { distance, distanceToFit, cosmosDistance } from './lib/geometry.js'
+import { distance, distanceToFit, cosmosDistance, FOCAL } from './lib/geometry.js'
 import { GALAXY_RADIUS } from './lib/galaxy.js'
 
 /**
@@ -184,6 +184,26 @@ export default function App() {
   }, [isNarrow, showCard, mineMode, panelOpen])
 
   const topInset = isNarrow ? 58 : 0
+
+  /**
+   * 첫 화면 문구를 은하와 겹치지 않게 놓는 자리 (좁은 화면에서만).
+   *
+   * 은하는 화면 한가운데를 차지합니다. 그 위에 글자를 올리면 아무리 밝게 해도
+   * 배경이 이겨요. 그래서 은하의 **실제 화면상 크기**를 재서 문구는 그 위로,
+   * 안내는 그 아래로 비켜 세웁니다. 기울여 보고 있으니 세로는 sin(pitch)만큼 납작합니다.
+   */
+  const welcomeLayout = useMemo(() => {
+    if (!isNarrow) return null
+    const h = window.innerHeight
+    const radiusPx = (GALAXY_RADIUS * FOCAL) / wholeGalaxy()
+    const halfV = radiusPx * Math.sin(0.92)
+    const skyCenter = h / 2 + (topInset - bottomInset) / 2
+    return {
+      textTop: Math.max(topInset + 78, skyCenter - halfV - 56),
+      hintTop: Math.min(h - 172, skyCenter + halfV + 38),
+    }
+    // 웰컴은 전체 은하 시점에서만 보이므로 그때의 여백으로 계산하면 충분합니다
+  }, [isNarrow, wholeGalaxy, topInset, bottomInset])
 
   /** 반지름 radius의 무리가 (가려진 곳을 빼고) 화면에 들어오는 카메라 거리 */
   const fitDistance = useCallback(
@@ -387,7 +407,7 @@ export default function App() {
           onCosmos={backToCosmos}
         />
 
-        {!welcomeGone && ready && <Welcome gone={welcomeGone} />}
+        {!welcomeGone && ready && <Welcome gone={welcomeGone} layout={welcomeLayout} />}
 
         <div className="bottom">
           <p className="creed">
