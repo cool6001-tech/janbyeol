@@ -8,6 +8,8 @@
  * 내 글끼리 이어지면 그건 공감이 아니라 그냥 내 기록이니까요.
  */
 
+import { affinityOf } from './affinity.js'
+
 /**
  * 한 사람의 이야기 줄기.
  * 같은 성단 안(= 같은 사람)의 잔별을 띄운 순서대로 이어 붙입니다.
@@ -34,23 +36,33 @@ export function buildOwnThreads(stars) {
 
 /**
  * 잔별들 사이의 이웃 관계.
- * 겹치는 태그가 많은 짝부터 차례로 이어 붙이되, 한 잔별이 너무 많은 선을
- * 갖지 않게 제한합니다. 그래야 그물이 촘촘하지 않고 길게 뻗습니다.
+ *
+ * 무엇으로 잇는가가 이 서비스의 전부입니다. 예전에는 "겹치는 태그 개수"였어요.
+ * 지금은 소재와 감정을 함께 본 0~10점입니다 (`affinity.js`).
+ *
+ * 점수가 높은 짝부터 차례로 이어 붙이되, 한 잔별이 너무 많은 선을 갖지 않게
+ * 제한합니다. 그래서 **가장 닮은 사람이 바로 옆에 오고, 덜 닮은 사람은
+ * 자연히 한 단계 건너에 놓입니다.** 문턱을 넘지 못한 짝은 아예 잇지 않아요 —
+ * 아무 상관 없는 글끼리 이어지면 그물이 의미를 잃습니다.
  */
-export function buildGraph(stars, maxDegree = 3) {
+const MIN_SCORE = 3
+
+export function buildGraph(stars, maxDegree = 3, minScore = MIN_SCORE) {
   const pairs = []
   for (let i = 0; i < stars.length; i++) {
     for (let j = i + 1; j < stars.length; j++) {
+      // 같은 성단 안(= 같은 사람)은 잇지 않습니다. 그건 공감이 아니니까요.
       if (stars[i].authorId === stars[j].authorId) continue
-      const shared = stars[i].tags.filter((t) => stars[j].tags.includes(t))
-      if (shared.length === 0) continue
-      pairs.push({ a: stars[i].id, b: stars[j].id, w: shared.length, tags: shared })
+      const w = affinityOf(stars[i], stars[j])
+      if (w < minScore) continue
+      pairs.push({ a: stars[i].id, b: stars[j].id, w })
     }
   }
   pairs.sort((x, y) => y.w - x.w)
 
   const adj = new Map()
   const edges = []
+  const weights = new Map() // "a|b" → 점수
   const degreeOf = (id) => (adj.get(id) ? adj.get(id).length : 0)
 
   for (const pair of pairs) {
@@ -60,9 +72,34 @@ export function buildGraph(stars, maxDegree = 3) {
     adj.get(pair.a).push(pair.b)
     adj.get(pair.b).push(pair.a)
     edges.push(pair)
+    weights.set(keyOf(pair.a, pair.b), pair.w)
   }
 
-  return { adj, edges }
+  /* 아무와도 이어지지 않은 잔별은 남기지 않습니다.
+     문턱을 못 넘었더라도 가장 닮은 한 사람과는 잇습니다 —
+     그물에서 끊긴 별은 누구에게도 발견될 수 없으니까요. */
+  for (const star of stars) {
+    if (degreeOf(star.id) > 0) continue
+    let best = null
+    for (const other of stars) {
+      if (other.id === star.id || other.authorId === star.authorId) continue
+      const w = affinityOf(star, other)
+      if (!best || w > best.w) best = { id: other.id, w }
+    }
+    if (!best) continue
+    if (!adj.has(star.id)) adj.set(star.id, [])
+    if (!adj.has(best.id)) adj.set(best.id, [])
+    adj.get(star.id).push(best.id)
+    adj.get(best.id).push(star.id)
+    edges.push({ a: star.id, b: best.id, w: best.w, lonely: true })
+    weights.set(keyOf(star.id, best.id), best.w)
+  }
+
+  return { adj, edges, weights, scoreOf: (a, b) => weights.get(keyOf(a, b)) ?? 0 }
+}
+
+function keyOf(a, b) {
+  return a < b ? `${a}|${b}` : `${b}|${a}`
 }
 
 /**

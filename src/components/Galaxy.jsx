@@ -11,6 +11,25 @@ const LEVELS = 7
 /** 별빛이 한 겹 건너가는 데 걸리는 시간 */
 const REVEAL_STEP = 620
 
+/* ---------------------------------------------------------------
+   별길의 색
+
+   이 하늘에서 파랑은 별빛(COOL)이고 호박색은 온기(WARM)입니다. 둘 다 이미
+   뜻을 가진 색이라, 별길이 그중 하나를 쓰면 "이게 온기인가 별빛인가" 하게 돼요.
+   남은 자리가 초록이었습니다. 밤하늘의 오로라 같은 색이라 어색하지도 않고,
+   무엇보다 **한눈에 다른 것**입니다.
+
+   색만 바꾸고 싶으면 이 한 줄이면 됩니다.
+--------------------------------------------------------------- */
+const ROAD_RGB = '120,240,196'
+
+/** 별길이 또렷하게 남아 있는 시간 · 완전히 사라지는 시간 */
+const ROAD_FULL_MS = 36 * 3600 * 1000 // 하루 반
+const ROAD_GONE_MS = 72 * 3600 * 1000 // 사흘
+
+/** 이만큼 사이를 두고 읽었으면 다른 날의 산책으로 봅니다 (길을 잇지 않음) */
+const ROAD_GAP_MS = 3 * 3600 * 1000
+
 /**
  * 3D 공용 은하
  * ---------------------------------------------------------------
@@ -40,7 +59,7 @@ export default function Galaxy({
   bottomInset,
   topInset = 0,
   initialDist = 3400,
-  readIds,
+  readTrail,
 }) {
   const canvasRef = useRef(null)
   const propsRef = useRef(null)
@@ -72,8 +91,11 @@ export default function Galaxy({
   const gatherSlots = useMemo(() => {
     const map = new Map()
     if (!gather?.anchorId) return map
-    const { ring1 = [], ring2 = [], r1 = 230, r2 = 430 } = gather
-    ring1.forEach((id, i) => map.set(id, { r: r1, i, n: ring1.length, seed: 0.45 }))
+    const { ring1 = [], ring2 = [], r2 = 500, radiusOf } = gather
+    // 1겹은 닮은 만큼 가까이 — 반지름이 별마다 다릅니다
+    ring1.forEach((id, i) =>
+      map.set(id, { r: radiusOf ? radiusOf(id) : 300, i, n: ring1.length, seed: 0.45 })
+    )
     ring2.forEach((id, i) => map.set(id, { r: r2, i, n: ring2.length, seed: 1.25 }))
     return map
   }, [gather])
@@ -84,11 +106,24 @@ export default function Galaxy({
    * 이건 오직 내가 낸 길이에요.
    */
   const road = useMemo(() => {
-    const ids = readIds || []
+    const trail = readTrail || []
     const out = []
-    for (let i = 1; i < ids.length; i++) out.push({ a: ids[i - 1], b: ids[i] })
+    for (let i = 1; i < trail.length; i++) {
+      const from = trail[i - 1]
+      const to = trail[i]
+      const at = new Date(to.at).getTime()
+      // 한참 뒤에 다시 앉은 건 다른 날의 산책입니다. 억지로 잇지 않아요.
+      if (at - new Date(from.at).getTime() > ROAD_GAP_MS) continue
+      out.push({ a: from.id, b: to.id, at })
+    }
     return out
-  }, [readIds])
+  }, [readTrail])
+
+  /** 길 위에 놓인 잔별 — 매듭을 그릴 자리 */
+  const roadKnots = useMemo(
+    () => (readTrail || []).map((r) => ({ id: r.id, at: new Date(r.at).getTime() })),
+    [readTrail]
+  )
 
   propsRef.current = {
     stars,
@@ -97,6 +132,7 @@ export default function Galaxy({
     gather,
     gatherSlots,
     road,
+    roadKnots,
     trace,
     myId,
     mineMode,
@@ -386,9 +422,11 @@ export default function Galaxy({
         const isMineThread = isOwn && link.authorId === p.myId
         const warmAvg = (A.rt.warm + B.rt.warm) / 2
 
+        // link.w 는 0~10 의 닮음 점수입니다 (예전엔 겹친 태그 개수였어요).
+        // 많이 닮은 선일수록 조금 더 또렷하게.
         let alpha = isOwn
           ? (isMineThread ? 0.3 : 0.06) + warmAvg * 0.2
-          : 0.05 + 0.05 * Math.min(1, (link.w || 1) / 2) + warmAvg * 0.08
+          : 0.04 + 0.07 * Math.min(1, (link.w || 3) / 10) + warmAvg * 0.08
         if (link.cluster) alpha += 0.14
         if (!traced && (p.selectedId === link.a || p.selectedId === link.b)) alpha += 0.14
         alpha *= Math.min(A.rt.dim, B.rt.dim)
@@ -411,44 +449,83 @@ export default function Galaxy({
          읽기 순서는 제멋대로라 길이 은하를 여러 번 가로지릅니다. 전부 같은
          밝기로 그리면 서른 개쯤에서 낙서가 돼요. 그래서 최근에 걸은 구간이
          또렷하고 옛 구간은 옅게 남습니다 — 총량이 아니라 흐름이 읽히도록. */
-      if (p.road.length) {
-        const total = p.road.length
-        const roadFade = traced ? 0.42 : 1
+      if (p.road.length || p.roadKnots.length) {
+        const clock = Date.now()
+        const traceFade = traced ? 0.5 : 1
         const grew = now - (scene.roadGrewAt || 0)
-        // 둥근 끝 — 길이 지나간 잔별마다 작은 매듭처럼 보입니다.
-        // 고리를 하나 더 얹지 않고도 '이 별에 다녀갔다'가 읽혀요.
+
+        /* 얼마나 오래된 길인가 — 하루 반까지는 그대로, 사흘이면 사라집니다.
+           예전에는 "몇 번째로 읽었는가"로 흐리게 했더니, 스무 개쯤 읽으면
+           처음 것들이 보이지 않아서 결국 또 헷갈렸습니다. 시간으로 바꿉니다. */
+        const freshness = (at) => {
+          const age = clock - at
+          if (age <= ROAD_FULL_MS) return 1
+          if (age >= ROAD_GONE_MS) return 0
+          return 1 - (age - ROAD_FULL_MS) / (ROAD_GONE_MS - ROAD_FULL_MS)
+        }
+
+        // 나의 성단에서는 남의 잔별이 저물지만, 내가 낸 길만은 읽혀야 합니다
+        const roadDim = (A, B) => Math.max(0.62, Math.min(A.rt.dim, B.rt.dim))
+
         ctx.lineCap = 'round'
 
-        for (let i = 0; i < total; i++) {
-          const A = byId.get(p.road[i].a)
-          const B = byId.get(p.road[i].b)
+        for (let i = 0; i < p.road.length; i++) {
+          const seg = p.road[i]
+          const A = byId.get(seg.a)
+          const B = byId.get(seg.b)
           if (!A?.pr || !B?.pr) continue
 
-          const recency = (i + 1) / total // 1에 가까울수록 최근에 걸은 길
-          let alpha = (0.09 + 0.44 * Math.pow(recency, 1.7)) * roadFade
-          alpha *= Math.min(A.rt.dim, B.rt.dim)
-          if (alpha < 0.005) continue
+          const fresh = freshness(seg.at)
+          if (fresh <= 0) continue
+          const alpha = 0.72 * fresh * traceFade * roadDim(A, B)
+          if (alpha < 0.01) continue
 
-          // 방금 낸 구간은 A에서 B로 그어지는 게 보인다
-          const prog = i === total - 1 ? Math.min(1, grew / 720) : 1
+          // 방금 낸 구간은 한 별에서 다음 별로 그어지는 게 보인다
+          const prog = i === p.road.length - 1 ? Math.min(1, grew / 720) : 1
           const hx = A.pr.sx + (B.pr.sx - A.pr.sx) * prog
           const hy = A.pr.sy + (B.pr.sy - A.pr.sy) * prog
 
-          ctx.strokeStyle = `rgba(255,206,158,${alpha.toFixed(3)})`
-          ctx.lineWidth = 0.95 + 0.95 * recency
+          // 두 번 긋습니다 — 넓고 옅은 번짐 위에 가늘고 또렷한 심지
+          ctx.strokeStyle = `rgba(${ROAD_RGB},${(alpha * 0.22).toFixed(3)})`
+          ctx.lineWidth = 5
+          ctx.beginPath()
+          ctx.moveTo(A.pr.sx, A.pr.sy)
+          ctx.lineTo(hx, hy)
+          ctx.stroke()
+
+          ctx.strokeStyle = `rgba(${ROAD_RGB},${alpha.toFixed(3)})`
+          ctx.lineWidth = 1.5
           ctx.beginPath()
           ctx.moveTo(A.pr.sx, A.pr.sy)
           ctx.lineTo(hx, hy)
           ctx.stroke()
 
           if (prog < 1) {
-            ctx.fillStyle = `rgba(255,214,170,${(0.85 * roadFade).toFixed(3)})`
+            ctx.fillStyle = `rgba(${ROAD_RGB},0.95)`
             ctx.beginPath()
-            ctx.arc(hx, hy, 1.8, 0, 6.283)
+            ctx.arc(hx, hy, 2.2, 0, 6.283)
             ctx.fill()
           }
         }
         ctx.lineCap = 'butt' // 다른 선들은 원래대로
+
+        /* 매듭 — 길이 지나간 잔별마다.
+           선만으로는 '이 별을 읽었나'가 애매합니다. 별 무리 안에서 어느 것이
+           내가 읽은 별인지 딱 짚어주는 건 이 작은 고리예요. 오늘 하루의 산책이
+           한 개뿐이어서 선이 없을 때도 이것만은 남습니다. */
+        for (const knot of p.roadKnots) {
+          const v = byId.get(knot.id)
+          if (!v?.pr) continue
+          const fresh = freshness(knot.at)
+          if (fresh <= 0) continue
+          const alpha = 0.62 * fresh * traceFade * Math.max(0.62, v.rt.dim)
+          const r = (v.rt.lastRad || 3) + 5.5
+          ctx.strokeStyle = `rgba(${ROAD_RGB},${alpha.toFixed(3)})`
+          ctx.lineWidth = 1.3
+          ctx.beginPath()
+          ctx.arc(v.pr.sx, v.pr.sy, r, 0, 6.283)
+          ctx.stroke()
+        }
       }
 
       /* 번져나가는 별빛.
@@ -542,6 +619,7 @@ export default function Galaxy({
         rad *= 0.6 + 0.4 * fade
         rad *= 0.55 + 0.45 * rt.dim
         rad = Math.max(0.9, Math.min(rad, cap))
+        rt.lastRad = rad // 별길의 매듭이 이 크기에 맞춰 둘러집니다
 
         // 헤일로
         const halo = rad * (hasPhoto(star) ? 11 : 8) * (0.8 + 0.5 * rt.warm)

@@ -34,9 +34,20 @@ const TRACE_DEPTH = 4
  * 택한 답: 닿아 있는 잔별을 **잠시** 그 별 곁의 궤도로 끌어옵니다.
  * 이미 '공감 성단'에서 쓰던 연출과 같은 규칙이고, 저장된 좌표는 건드리지 않습니다.
  * 전체 은하로 돌아가면 각자의 자리로 흩어집니다.
+ *
+ * 그리고 **얼마나 닮았느냐가 곧 거리입니다.** 1겹 안에서도 10점짜리는
+ * 코앞에(ORBIT_NEAR), 3점짜리는 그 바깥에(ORBIT_FAR) 섭니다.
+ * 점수는 화면에 숫자로 나오지 않아요 — 거리로만 말합니다.
  */
-const ORBIT_R1 = 230 // 1겹 — 직접 닿은 잔별
-const ORBIT_R2 = 430 // 2겹 — 그 잔별이 닿은 잔별
+const ORBIT_NEAR = 155 // 10점 — 나와 가장 가까운 마음
+const ORBIT_FAR = 330 // 겨우 이어진 정도
+const ORBIT_R2 = 500 // 2겹 — 그 잔별이 닿은 잔별
+
+/** 점수(0~10)를 궤도 반지름으로 */
+function orbitRadiusFor(score) {
+  const t = Math.max(0, Math.min(1, score / 10))
+  return ORBIT_FAR - (ORBIT_FAR - ORBIT_NEAR) * t
+}
 
 export default function App() {
   const { me, stars, ready, addStar, toggleWarm, addReply, reset, read, readMap, markRead, clearRead } =
@@ -150,6 +161,7 @@ export default function App() {
    * 닮은 마음들(공감 성단)이 모입니다.
    */
   const gather = useMemo(() => {
+    const empty = { anchorId: null, ring1: [], ring2: [], radiusOf: () => ORBIT_FAR, r2: ORBIT_R2 }
     if (selectedId && trace) {
       const ring1 = []
       const ring2 = []
@@ -157,16 +169,28 @@ export default function App() {
         if (depth === 1) ring1.push(id)
         else if (depth === 2) ring2.push(id)
       }
-      if (ring1.length || ring2.length) {
-        return { anchorId: selectedId, ring1, ring2, r1: ORBIT_R1, r2: ORBIT_R2 }
+      if (!ring1.length && !ring2.length) return empty
+      // 닮은 만큼 가까이 — 가장 닮은 마음이 코앞에 섭니다
+      ring1.sort((x, y) => graph.scoreOf(selectedId, y) - graph.scoreOf(selectedId, x))
+      return {
+        anchorId: selectedId,
+        ring1,
+        ring2,
+        radiusOf: (id) => orbitRadiusFor(graph.scoreOf(selectedId, id)),
+        r2: ORBIT_R2,
       }
-      return { anchorId: null, ring1: [], ring2: [], r1: ORBIT_R1, r2: ORBIT_R2 }
     }
     if (kindred.anchorId) {
-      return { anchorId: kindred.anchorId, ring1: kindred.ids, ring2: [], r1: ORBIT_R1, r2: ORBIT_R2 }
+      return {
+        anchorId: kindred.anchorId,
+        ring1: kindred.ids,
+        ring2: [],
+        radiusOf: (id) => orbitRadiusFor(graph.scoreOf(kindred.anchorId, id) || 6),
+        r2: ORBIT_R2,
+      }
     }
-    return { anchorId: null, ring1: [], ring2: [], r1: ORBIT_R1, r2: ORBIT_R2 }
-  }, [selectedId, trace, kindred])
+    return empty
+  }, [selectedId, trace, kindred, graph])
 
   const showCard = Boolean(selected && cardOpen)
   /** 회고 시트를 접어둔 채 하늘을 보고 있는 상태 — 입력창은 그 손잡이 위로 */
@@ -270,8 +294,8 @@ export default function App() {
 
       const reached = traceFrom(graph.adj, id, TRACE_DEPTH)
       let outer = 0
-      for (const depth of reached.depthOf.values()) {
-        if (depth === 1) outer = Math.max(outer, ORBIT_R1)
+      for (const [nid, depth] of reached.depthOf) {
+        if (depth === 1) outer = Math.max(outer, orbitRadiusFor(graph.scoreOf(id, nid)))
         else if (depth === 2) outer = Math.max(outer, ORBIT_R2)
       }
 
@@ -292,20 +316,20 @@ export default function App() {
   /**
    * 카드를 잠깐 열어둔 것만으로 읽었다고 하지는 않습니다.
    * 스쳐 지나간 탭까지 길이 되면 지도가 거짓말을 하게 되니까요.
-   * 내가 쓴 잔별은 길에 넣지 않습니다 — 그건 읽은 게 아니라 쓴 것이고,
-   * '나의 성단'에서 이야기의 줄기와 선이 두 겹으로 겹칩니다.
+   *
+   * 내 잔별도 길에 놓습니다. '나의 성단'에서 길이 **내 별에서 출발해야**
+   * 내가 어느 이야기에서 시작해 어디까지 걸어갔는지가 보이니까요.
    */
   useEffect(() => {
     if (!cardOpen || !selected) return
-    if (selected.authorId === me.id) return
     const t = setTimeout(() => markRead(selected.id), 1200)
     return () => clearTimeout(t)
-  }, [cardOpen, selected, me.id, markRead])
+  }, [cardOpen, selected, markRead])
 
-  /** 별길에 놓인 잔별들 — 지금 하늘에 실제로 있는 것만 */
-  const roadIds = useMemo(() => {
+  /** 별길 — 지금 하늘에 실제로 있는 잔별만, 읽은 순서 그대로 */
+  const readTrail = useMemo(() => {
     const alive = new Set(stars.map((s) => s.id))
-    return read.map((r) => r.id).filter((id) => alive.has(id))
+    return read.filter((r) => alive.has(r.id))
   }, [read, stars])
 
   /* ---------- 시점 전환 ---------- */
@@ -365,7 +389,7 @@ export default function App() {
       const star = await addStar({ text, photo })
       const similar = findKindred(stars, star, 5)
       setKindred({ anchorId: star.id, ids: similar.map((s) => s.id) })
-      lookAt(star, { scale: 1, dist: fitDistance(ORBIT_R1 * 1.15), pitch: 0.7, hold: 5200 })
+      lookAt(star, { scale: 1, dist: fitDistance(ORBIT_FAR * 1.2), pitch: 0.7, hold: 5200 })
       say('잔별이 떠올랐어요. 닮은 마음들이 모여듭니다.')
       setTimeout(() => {
         setSelectedId(star.id)
@@ -420,7 +444,7 @@ export default function App() {
         bottomInset={bottomInset}
         topInset={topInset}
         initialDist={wholeGalaxy()}
-        readIds={roadIds}
+        readTrail={readTrail}
       />
 
       {/* 좁은 화면에서 시트가 올라오면 입력창은 자리를 비켜준다 */}
@@ -470,7 +494,7 @@ export default function App() {
           onToggle={() => setPanelOpen((v) => !v)}
           onClose={backToCosmos}
           onSelectStar={handleSelect}
-          roadCount={roadIds.length}
+          roadCount={readTrail.length}
           onClearRoad={() => {
             clearRead()
             setReReading(null)

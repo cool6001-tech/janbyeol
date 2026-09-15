@@ -3,6 +3,7 @@
  */
 
 import { monthKey, lastTwelveMonths, isAnniversary } from './time.js'
+import { affinityOf } from './affinity.js'
 
 export function myStars(stars, myId) {
   return stars
@@ -61,15 +62,15 @@ export function myConstellation(stars, myId, now = Date.now()) {
   }
 }
 
-/** 방금 띄운 잔별과 마음이 닮은 잔별들 (성단의 재료) */
+/**
+ * 방금 띄운 잔별과 마음이 닮은 잔별들 (공감 성단의 재료).
+ * 닮음의 기준은 은하의 연결선과 같습니다 — 소재와 감정을 함께 본 0~10점.
+ */
 export function findKindred(stars, target, limit = 5) {
   const scored = stars
     .filter((s) => s.id !== target.id)
-    .map((s) => ({
-      star: s,
-      score: s.tags.filter((t) => target.tags.includes(t)).length,
-    }))
-    .filter((s) => s.score > 0)
+    .map((s) => ({ star: s, score: affinityOf(target, s) }))
+    .filter((s) => s.score >= 3)
     .sort((a, b) => b.score - a.score)
 
   // 닮은 별이 모자라면, 가까이 있는 별이라도 곁에 둔다
