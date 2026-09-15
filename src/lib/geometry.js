@@ -58,6 +58,20 @@ export function distanceToFit(radius, margin, focal = FOCAL) {
 }
 
 /**
+ * 은하 전체가 화면에 담기는 거리.
+ *
+ * 예전에는 3400으로 **고정**되어 있었습니다. 1440px 화면에 맞춰 고른 값이라
+ * 휴대폰에서는 은하가 화면 밖으로 넘쳐서, 새로 고치면 핵만 크게 보였어요.
+ * 화면이 좁을수록 더 멀리 물러나야 같은 그림이 담깁니다.
+ */
+export function cosmosDistance(radius, { width, height, narrow = width <= 860 } = {}) {
+  const usableW = width - (narrow ? 24 : 40)
+  const usableH = height - (narrow ? 142 : 120) // 상단바 · 입력창
+  const margin = Math.max(90, Math.min(usableW, usableH) / 2)
+  return Math.max(1200, Math.min(9000, distanceToFit(radius, margin)))
+}
+
+/**
  * 끌려온 별이 잠시 머무는 궤도 위의 자리.
  * 고리를 완전한 원으로 두면 기계처럼 보여서, 높이와 반지름을 조금씩 흔듭니다.
  */

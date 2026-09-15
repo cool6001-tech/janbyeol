@@ -175,7 +175,9 @@ ul {
   color: var(--warm);
 }
 
-/* ---------------- 웰컴 ---------------- */
+/* ---------------- 웰컴 ----------------
+   이 글자는 하필 은하의 밝은 핵 위에 겹칩니다. 그래서 글자만 밝게 해서는
+   읽히지 않아요. 뒤에 경계가 보이지 않는 옅은 그늘을 깔고, 그 위에 올립니다. */
 .welcome {
   position: fixed;
   left: 50%;
@@ -186,21 +188,63 @@ ul {
   pointer-events: none;
   transition: opacity 1.6s ease;
 }
+.welcome::before {
+  content: '';
+  position: absolute;
+  inset: -22% -16%;
+  background: radial-gradient(
+    56% 58% at 50% 52%,
+    rgba(3, 4, 9, 0.8),
+    rgba(3, 4, 9, 0.46) 44%,
+    rgba(3, 4, 9, 0) 75%
+  );
+}
+.welcome p,
+.welcome small {
+  position: relative;
+}
 .welcome p {
   font-family: var(--serif);
   font-size: clamp(17px, 2.6vw, 24px);
   line-height: 2;
-  color: rgba(221, 229, 247, 0.9);
+  color: rgba(233, 239, 253, 0.97);
   text-wrap: balance;
   word-break: keep-all;
-  text-shadow: 0 0 34px rgba(120, 150, 230, 0.35);
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.9), 0 0 34px rgba(120, 150, 230, 0.4);
 }
+
+/* 눌러보라는 말이니 눌리는 것과 같은 색으로 — 별빛의 온기 색 */
 .welcome small {
-  display: block;
-  margin-top: 22px;
-  font-size: var(--fs-xs);
-  letter-spacing: 0.3em;
-  color: var(--mist);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 26px;
+  font-family: var(--sans);
+  font-size: 12.5px;
+  letter-spacing: 0.16em;
+  color: #ffdcb4;
+  text-shadow: 0 0 14px rgba(255, 176, 103, 0.65), 0 0 36px rgba(255, 140, 80, 0.3),
+    0 2px 10px rgba(0, 0, 0, 0.95);
+  animation: hintbreathe 3.4s ease-in-out infinite;
+}
+.welcome small::before,
+.welcome small::after {
+  content: '';
+  width: 20px;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(255, 176, 103, 0), rgba(255, 176, 103, 0.6));
+}
+.welcome small::after {
+  transform: scaleX(-1);
+}
+@keyframes hintbreathe {
+  0%,
+  100% {
+    opacity: 0.68;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 .welcome.gone {
   opacity: 0;
@@ -1107,5 +1151,9 @@ ul {
   .welcome,
   .toast {
     transition-duration: 0.01ms;
+  }
+  .welcome small {
+    animation: none;
+    opacity: 1;
   }
 }

@@ -9,7 +9,8 @@ import ConstellationPanel from './components/ConstellationPanel.jsx'
 import { useJanbyeol } from './hooks/useJanbyeol.js'
 import { myConstellation, findKindred } from './lib/stats.js'
 import { buildGraph, buildOwnThreads, traceFrom, reachOf } from './lib/graph.js'
-import { distance, distanceToFit } from './lib/geometry.js'
+import { distance, distanceToFit, cosmosDistance } from './lib/geometry.js'
+import { GALAXY_RADIUS } from './lib/galaxy.js'
 
 /**
  * 하늘을 보는 두 가지 시점
@@ -52,6 +53,11 @@ export default function App() {
   const [panelOpen, setPanelOpen] = useState(true) // 모바일 바텀시트가 펼쳐져 있는가
   const toastTimer = useRef(0)
   const cardAnchorRef = useRef(null)
+  // 창 크기가 바뀌었을 때 "지금 무엇을 보고 있었는지"를 리스너에서 읽기 위한 것
+  const selectedIdRef = useRef(null)
+  const mineModeRef = useRef(false)
+  selectedIdRef.current = selectedId
+  mineModeRef.current = mineMode
 
   const reducedMotion = useMemo(
     () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
@@ -61,11 +67,39 @@ export default function App() {
   const selected = stars.find((s) => s.id === selectedId) || null
   const constellation = useMemo(() => myConstellation(stars, me.id), [stars, me.id])
 
+  /** 은하 전체가 담기는 거리 — 화면 크기에 따라 달라집니다 */
+  const wholeGalaxy = useCallback(
+    () =>
+      cosmosDistance(GALAXY_RADIUS, {
+        width: window.innerWidth,
+        height: window.innerHeight,
+      }),
+    []
+  )
+
   useEffect(() => {
-    const onResize = () => setIsNarrow(window.innerWidth <= 860)
+    let timer = 0
+    const onResize = () => {
+      setIsNarrow(window.innerWidth <= 860)
+      // 화면이 바뀌면 전체 은하 시점은 다시 맞춘다 (회전 · 창 크기 조절)
+      clearTimeout(timer)
+      timer = setTimeout(() => {
+        if (selectedIdRef.current || mineModeRef.current) return
+        setFocus({
+          pos: { x: 0, y: 0, z: 0 },
+          dist: wholeGalaxy(),
+          pitch: 0.92,
+          hold: 0,
+          key: Date.now(),
+        })
+      }, 220)
+    }
     window.addEventListener('resize', onResize)
-    return () => window.removeEventListener('resize', onResize)
-  }, [])
+    return () => {
+      window.removeEventListener('resize', onResize)
+      clearTimeout(timer)
+    }
+  }, [wholeGalaxy])
 
   /* 웰컴 문구는 첫 조작이나 7초 뒤에 저문다 */
   useEffect(() => {
@@ -263,9 +297,9 @@ export default function App() {
     setCardOpen(false)
     setMineMode(false)
     setKindred({ anchorId: null, ids: [] })
-    setFocus({ pos: { x: 0, y: 0, z: 0 }, dist: 3400, pitch: 0.92, hold: 0, key: Date.now() })
+    setFocus({ pos: { x: 0, y: 0, z: 0 }, dist: wholeGalaxy(), pitch: 0.92, hold: 0, key: Date.now() })
     setWelcomeGone(true)
-  }, [])
+  }, [wholeGalaxy])
 
   const toggleMine = useCallback(() => {
     if (mineMode) backToCosmos()
@@ -337,6 +371,7 @@ export default function App() {
         anchored={!isNarrow}
         bottomInset={bottomInset}
         topInset={topInset}
+        initialDist={wholeGalaxy()}
       />
 
       {/* 좁은 화면에서 시트가 올라오면 입력창은 자리를 비켜준다 */}

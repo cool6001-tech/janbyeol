@@ -39,26 +39,33 @@ export default function Galaxy({
   anchored,
   bottomInset,
   topInset = 0,
+  initialDist = 3400,
 }) {
   const canvasRef = useRef(null)
   const propsRef = useRef(null)
-  const sceneRef = useRef({
-    cam: {
-      yaw: 0.4, pitch: 0.92, dist: 3400,
-      tYaw: 0.4, tPitch: 0.92, tDist: 3400,
-      tx: 0, ty: 0, tz: 0, ttx: 0, tty: 0, ttz: 0,
-      ox: 0, oy: 0, // 아래를 시트가 가리면 하늘의 중심을 위로 올린다
-      focal: FOCAL,
-    },
-    runtime: new Map(),
-    ambient: null,
-    clouds: null,
-    buckets: null,
-    ambientDim: 1, // 나의 성단 시점에서 은하 전체가 물러나는 정도
-    ripples: [],
-    idleSpin: true,
-    idleTimer: 0,
-  })
+  const sceneRef = useRef(null)
+
+  // 첫 프레임부터 화면에 맞는 거리에서 시작한다.
+  // (예전에는 3400으로 고정돼 있어서 휴대폰에서는 은하가 화면 밖으로 넘쳤습니다)
+  if (!sceneRef.current) {
+    sceneRef.current = {
+      cam: {
+        yaw: 0.4, pitch: 0.92, dist: initialDist,
+        tYaw: 0.4, tPitch: 0.92, tDist: initialDist,
+        tx: 0, ty: 0, tz: 0, ttx: 0, tty: 0, ttz: 0,
+        ox: 0, oy: 0, // 아래를 시트가 가리면 하늘의 중심을 위로 올린다
+        focal: FOCAL,
+      },
+      runtime: new Map(),
+      ambient: null,
+      clouds: null,
+      buckets: null,
+      ambientDim: 1, // 나의 성단 시점에서 은하 전체가 물러나는 정도
+      ripples: [],
+      idleSpin: true,
+      idleTimer: 0,
+    }
+  }
 
   /** 어느 별이 어느 궤도의 몇 번째 자리로 끌려오는가 */
   const gatherSlots = useMemo(() => {
@@ -273,6 +280,10 @@ export default function Galaxy({
       const halfW = width / 2 + cam.ox
       const halfH = height / 2 + cam.oy
 
+      /* 멀리서 볼수록 배경 잔별이 한 픽셀에 여러 개 겹쳐 보입니다.
+         보정하지 않으면 좁은 화면(= 더 물러난 카메라)에서만 은하가 흐려집니다. */
+      const ambientGain = Math.min(2.8, Math.max(1, cam.dist / 3400))
+
       for (let i = 0; i < scene.ambient.length; i++) {
         const a = scene.ambient[i]
         const dx = a.x - cam.tx
@@ -288,7 +299,8 @@ export default function Galaxy({
         if (sx < 0 || sx > width) continue
         const sYy = halfH - y2 * k
         if (sYy < 0 || sYy > height) continue
-        const alpha = a.a * (k * 2.6 > 1.15 ? 1.15 : k * 2.6)
+        const lit = k * 2.6 * ambientGain
+        const alpha = a.a * (lit > 1.15 ? 1.15 : lit)
         if (alpha < 0.04) continue
         const level = alpha * LEVELS >= LEVELS ? LEVELS - 1 : (alpha * LEVELS) | 0
         const bucket = buckets[a.kind * LEVELS + level]
