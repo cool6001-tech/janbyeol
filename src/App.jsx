@@ -39,7 +39,8 @@ const ORBIT_R1 = 230 // 1겹 — 직접 닿은 잔별
 const ORBIT_R2 = 430 // 2겹 — 그 잔별이 닿은 잔별
 
 export default function App() {
-  const { me, stars, ready, addStar, toggleWarm, addReply, reset } = useJanbyeol()
+  const { me, stars, ready, addStar, toggleWarm, addReply, reset, read, readMap, markRead, clearRead } =
+    useJanbyeol()
 
   const [selectedId, setSelectedId] = useState(null)
   const [cardOpen, setCardOpen] = useState(false) // 카드를 닫아도 줌인은 남는다
@@ -48,6 +49,7 @@ export default function App() {
   const [focus, setFocus] = useState(null)
   const [ripple, setRipple] = useState(null)
   const [toast, setToast] = useState('')
+  const [reReading, setReReading] = useState(null) // 이미 읽었던 잔별을 다시 연 경우
   const [welcomeGone, setWelcomeGone] = useState(false)
   const [isNarrow, setIsNarrow] = useState(() => window.innerWidth <= 860)
   const [panelOpen, setPanelOpen] = useState(true) // 모바일 바텀시트가 펼쳐져 있는가
@@ -242,11 +244,18 @@ export default function App() {
       if (!id) {
         setSelectedId(null)
         setCardOpen(false)
+        setReReading(null)
         return
       }
 
       const star = stars.find((s) => s.id === id)
       if (!star) return
+
+      /* 카드를 여는 시점에 '전에 읽었는지'를 찍어 둡니다.
+         읽음 표시는 잠시 뒤에 붙으므로, 그때 가서 물어보면 읽는 도중에
+         "전에 읽었어요"가 나타나는 이상한 일이 생겨요. */
+      const before = readMap.get(id)
+      setReReading(before ? { id, at: before.lastAt || before.at } : null)
 
       // 이미 고른 별을 다시 누르면 카메라는 그대로 두고 카드만 다시 연다
       if (id === selectedId) {
@@ -274,11 +283,30 @@ export default function App() {
         key: Date.now() + Math.random(),
       })
     },
-    [stars, selectedId, graph, isNarrow, fitDistance]
+    [stars, selectedId, graph, isNarrow, fitDistance, readMap]
   )
 
   /** 카드를 닫아도 줌인·궤도·연결은 그대로 남는다 */
   const closeCard = useCallback(() => setCardOpen(false), [])
+
+  /**
+   * 카드를 잠깐 열어둔 것만으로 읽었다고 하지는 않습니다.
+   * 스쳐 지나간 탭까지 길이 되면 지도가 거짓말을 하게 되니까요.
+   * 내가 쓴 잔별은 길에 넣지 않습니다 — 그건 읽은 게 아니라 쓴 것이고,
+   * '나의 성단'에서 이야기의 줄기와 선이 두 겹으로 겹칩니다.
+   */
+  useEffect(() => {
+    if (!cardOpen || !selected) return
+    if (selected.authorId === me.id) return
+    const t = setTimeout(() => markRead(selected.id), 1200)
+    return () => clearTimeout(t)
+  }, [cardOpen, selected, me.id, markRead])
+
+  /** 별길에 놓인 잔별들 — 지금 하늘에 실제로 있는 것만 */
+  const roadIds = useMemo(() => {
+    const alive = new Set(stars.map((s) => s.id))
+    return read.map((r) => r.id).filter((id) => alive.has(id))
+  }, [read, stars])
 
   /* ---------- 시점 전환 ---------- */
 
@@ -392,6 +420,7 @@ export default function App() {
         bottomInset={bottomInset}
         topInset={topInset}
         initialDist={wholeGalaxy()}
+        readIds={roadIds}
       />
 
       {/* 좁은 화면에서 시트가 올라오면 입력창은 자리를 비켜준다 */}
@@ -425,6 +454,7 @@ export default function App() {
             me={me}
             reach={reach}
             open={showCard}
+            readAt={reReading?.id === selected.id ? reReading.at : null}
             onWarm={handleWarm}
             onReply={handleReply}
             onClose={closeCard}
@@ -440,10 +470,17 @@ export default function App() {
           onToggle={() => setPanelOpen((v) => !v)}
           onClose={backToCosmos}
           onSelectStar={handleSelect}
+          roadCount={roadIds.length}
+          onClearRoad={() => {
+            clearRead()
+            setReReading(null)
+            say('별길을 지웠어요. 다시 처음부터 걸어도 돼요.')
+          }}
           onReset={() => {
             reset()
             setSelectedId(null)
             setCardOpen(false)
+            setReReading(null)
             setKindred({ anchorId: null, ids: [] })
             setMineMode(false)
             say('하늘을 처음 상태로 되돌렸어요')

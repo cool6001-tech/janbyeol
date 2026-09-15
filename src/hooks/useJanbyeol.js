@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { storage, currentUser } from '../lib/storage.js'
+import { storage, readLog, currentUser } from '../lib/storage.js'
 import { buildSeed } from '../data/seed.js'
 import { tagsOf } from '../lib/tags.js'
 import { galaxyPositionFor } from '../lib/galaxy.js'
@@ -15,6 +15,7 @@ export function useJanbyeol() {
   const me = useMemo(() => currentUser(), [])
   const [stars, setStars] = useState([])
   const [ready, setReady] = useState(false)
+  const [read, setRead] = useState([]) // 읽은 순서대로 — 별길의 재료
 
   // 첫 방문이면 예시 잔별을 한 번 심고, 아니면 저장된 하늘을 그대로 불러온다
   useEffect(() => {
@@ -31,8 +32,10 @@ export function useJanbyeol() {
         )
         await storage.replaceAll(list)
       }
+      const log = await readLog.list()
       if (alive) {
         setStars(list)
+        setRead(log)
         setReady(true)
       }
     })()
@@ -103,13 +106,43 @@ export function useJanbyeol() {
     [stars, me]
   )
 
+  /* ---------------- 별길 ---------------- */
+
+  /** 이 잔별을 읽었다 — 별길이 한 칸 자란다 */
+  const markRead = useCallback(async (id) => {
+    const next = await readLog.add(id)
+    setRead(next)
+  }, [])
+
+  /** 별길만 지운다 (띄운 잔별은 그대로) */
+  const clearRead = useCallback(async () => {
+    setRead(await readLog.clear())
+  }, [])
+
+  /** 언제 읽었는지 — 카드에서 '전에 읽은 잔별'을 알려줄 때 씁니다 */
+  const readMap = useMemo(() => new Map(read.map((r) => [r.id, r])), [read])
+
   /** 하늘을 처음 상태로 (예시 기록까지 전부 지움) */
   const reset = useCallback(async () => {
     await storage.clearAll()
     const list = buildSeed(me)
     await storage.replaceAll(list)
+    // 별 id가 새로 생기므로 옛 별길은 가리킬 곳이 없습니다
+    setRead(await readLog.clear())
     setStars(list)
   }, [me])
 
-  return { me, stars, ready, addStar, toggleWarm, addReply, reset }
+  return {
+    me,
+    stars,
+    ready,
+    addStar,
+    toggleWarm,
+    addReply,
+    reset,
+    read,
+    readMap,
+    markRead,
+    clearRead,
+  }
 }

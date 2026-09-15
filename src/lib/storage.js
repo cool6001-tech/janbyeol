@@ -17,6 +17,7 @@
 
 const STARS_KEY = 'janbyeol.stars.v1'
 const ME_KEY = 'janbyeol.me.v1'
+const READ_KEY = 'janbyeol.read.v1'
 
 /* ---------------------------------------------------------------
    나를 식별하는 값
@@ -113,6 +114,69 @@ export const storage = {
   async replaceAll(stars) {
     writeAll(stars)
     return stars
+  },
+}
+
+/* ---------------------------------------------------------------
+   읽은 잔별 — 별길의 재료
+
+   star 안에 넣지 않습니다. 온기는 모두의 것이지만 **읽음은 내 것**이에요.
+   읽음이 글쓴이에게 보이는 순간 카톡의 '1' 같은 압박이 생깁니다.
+   읽씹당했다는 감각은 이 서비스가 절대 만들면 안 되는 감정이라,
+   이 기록은 내 브라우저 밖으로 나가지 않습니다. 서버로 옮기더라도
+   남에게는 보이지 않는 개인 테이블이어야 합니다.
+
+   순서가 곧 데이터입니다 — 배열인 이유예요. 길은 순서대로 이어지니까요.
+--------------------------------------------------------------- */
+let readCache = null
+
+function readLogAll() {
+  if (readCache) return readCache
+  try {
+    const parsed = JSON.parse(safeGet(READ_KEY) || '[]')
+    readCache = Array.isArray(parsed) ? parsed : []
+  } catch {
+    readCache = []
+  }
+  return readCache
+}
+
+export const readLog = {
+  /** 읽은 순서대로 [{ id, at }] */
+  async list() {
+    return readLogAll()
+  },
+
+  /**
+   * 한 잔별을 읽었다고 기록한다.
+   * 이미 지나간 자리는 **그대로 둡니다.** 다시 읽을 때마다 끝으로 옮기면
+   * 길이 되감기면서 고리가 생겨요. 한 번 난 길은 그대로 남는 편이
+   * 지도로서 안정적입니다.
+   */
+  async add(id) {
+    const list = readLogAll()
+    const found = list.find((r) => r.id === id)
+    const now = new Date().toISOString()
+    if (found) {
+      found.lastAt = now // 길은 그대로, '언제 마지막으로 읽었나'만 갱신
+    } else {
+      list.push({ id, at: now })
+      if (list.length > 600) list.splice(0, list.length - 600)
+    }
+    readCache = [...list]
+    safeSet(READ_KEY, JSON.stringify(readCache))
+    return readCache
+  },
+
+  /** 별길을 지운다 (띄운 잔별은 그대로) */
+  async clear() {
+    readCache = []
+    try {
+      window.localStorage.removeItem(READ_KEY)
+    } catch {
+      /* 무시 */
+    }
+    return readCache
   },
 }
 

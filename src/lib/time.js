@@ -53,6 +53,16 @@ export function relativeWhen(iso, now = Date.now()) {
     : `${date.getFullYear()}년 ${date.getMonth() + 1}월`
 }
 
+/**
+ * 언제 읽었는지.
+ * relativeWhen이 '방금'을 돌려줄 때가 있어서 조사를 그대로 붙이면
+ * "방금에 읽었어요"가 됩니다. 한 줄이지만 어색하면 눈에 걸려요.
+ */
+export function readWhen(iso, now = Date.now()) {
+  const when = relativeWhen(iso, now)
+  return when === '방금' ? '방금 읽었어요' : `${when}에 읽었어요`
+}
+
 export function monthKey(iso) {
   const d = new Date(iso)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`

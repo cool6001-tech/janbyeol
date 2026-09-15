@@ -1,12 +1,21 @@
 import { useEffect, useRef, useState } from 'react'
 import { photoOf, hasPhoto } from '../lib/photo.js'
-import { relativeWhen, isAnniversary, yearsAgo } from '../lib/time.js'
+import { relativeWhen, readWhen, isAnniversary, yearsAgo } from '../lib/time.js'
 
 /**
  * 잔별 카드
  * 우주 뷰에서는 보이지 않던 사진이, 여기서만 어두운 톤으로 깔립니다.
  */
-export default function StarCard({ star, me, reach, open = true, onWarm, onReply, onClose }) {
+export default function StarCard({
+  star,
+  me,
+  reach,
+  open = true,
+  readAt,
+  onWarm,
+  onReply,
+  onClose,
+}) {
   const [draft, setDraft] = useState('')
   const bodyRef = useRef(null)
 
@@ -54,6 +63,8 @@ export default function StarCard({ star, me, reach, open = true, onWarm, onReply
             {mine ? '나의 잔별 · ' : ''}
             {relativeWhen(star.createdAt)}
           </em>
+          {/* 하늘의 별길을 놓쳤더라도, 여는 순간 바로 알 수 있게 */}
+          {readAt && <em className="seen">{readWhen(readAt)}</em>}
         </div>
         <div className="body">{star.text}</div>
         <div className="tags">

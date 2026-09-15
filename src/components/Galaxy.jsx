@@ -40,6 +40,7 @@ export default function Galaxy({
   bottomInset,
   topInset = 0,
   initialDist = 3400,
+  readIds,
 }) {
   const canvasRef = useRef(null)
   const propsRef = useRef(null)
@@ -77,12 +78,25 @@ export default function Galaxy({
     return map
   }, [gather])
 
+  /**
+   * 별길 — 읽어나간 순서대로 이은 구간들.
+   * 세 번째 선의 겹입니다. 앞의 둘은 모두의 것(공감의 그물 · 이야기의 줄기)이고
+   * 이건 오직 내가 낸 길이에요.
+   */
+  const road = useMemo(() => {
+    const ids = readIds || []
+    const out = []
+    for (let i = 1; i < ids.length; i++) out.push({ a: ids[i - 1], b: ids[i] })
+    return out
+  }, [readIds])
+
   propsRef.current = {
     stars,
     links,
     selectedId,
     gather,
     gatherSlots,
+    road,
     trace,
     myId,
     mineMode,
@@ -121,6 +135,11 @@ export default function Galaxy({
   useEffect(() => {
     sceneRef.current.traceStart = performance.now()
   }, [trace?.rootId])
+
+  /* 별길이 한 칸 자란 시각 — 방금 낸 구간은 그어지는 게 보입니다 */
+  useEffect(() => {
+    sceneRef.current.roadGrewAt = performance.now()
+  }, [road.length])
 
   /* 온기 파문 — {id, key}가 바뀔 때마다 한 번 번진다 */
   useEffect(() => {
@@ -386,6 +405,50 @@ export default function Galaxy({
         ctx.moveTo(A.pr.sx, A.pr.sy)
         ctx.lineTo(B.pr.sx, B.pr.sy)
         ctx.stroke()
+      }
+
+      /* 별길 — 내가 읽어나간 순서대로 이어진 세 번째 선.
+         읽기 순서는 제멋대로라 길이 은하를 여러 번 가로지릅니다. 전부 같은
+         밝기로 그리면 서른 개쯤에서 낙서가 돼요. 그래서 최근에 걸은 구간이
+         또렷하고 옛 구간은 옅게 남습니다 — 총량이 아니라 흐름이 읽히도록. */
+      if (p.road.length) {
+        const total = p.road.length
+        const roadFade = traced ? 0.42 : 1
+        const grew = now - (scene.roadGrewAt || 0)
+        // 둥근 끝 — 길이 지나간 잔별마다 작은 매듭처럼 보입니다.
+        // 고리를 하나 더 얹지 않고도 '이 별에 다녀갔다'가 읽혀요.
+        ctx.lineCap = 'round'
+
+        for (let i = 0; i < total; i++) {
+          const A = byId.get(p.road[i].a)
+          const B = byId.get(p.road[i].b)
+          if (!A?.pr || !B?.pr) continue
+
+          const recency = (i + 1) / total // 1에 가까울수록 최근에 걸은 길
+          let alpha = (0.09 + 0.44 * Math.pow(recency, 1.7)) * roadFade
+          alpha *= Math.min(A.rt.dim, B.rt.dim)
+          if (alpha < 0.005) continue
+
+          // 방금 낸 구간은 A에서 B로 그어지는 게 보인다
+          const prog = i === total - 1 ? Math.min(1, grew / 720) : 1
+          const hx = A.pr.sx + (B.pr.sx - A.pr.sx) * prog
+          const hy = A.pr.sy + (B.pr.sy - A.pr.sy) * prog
+
+          ctx.strokeStyle = `rgba(255,206,158,${alpha.toFixed(3)})`
+          ctx.lineWidth = 0.95 + 0.95 * recency
+          ctx.beginPath()
+          ctx.moveTo(A.pr.sx, A.pr.sy)
+          ctx.lineTo(hx, hy)
+          ctx.stroke()
+
+          if (prog < 1) {
+            ctx.fillStyle = `rgba(255,214,170,${(0.85 * roadFade).toFixed(3)})`
+            ctx.beginPath()
+            ctx.arc(hx, hy, 1.8, 0, 6.283)
+            ctx.fill()
+          }
+        }
+        ctx.lineCap = 'butt' // 다른 선들은 원래대로
       }
 
       /* 번져나가는 별빛.

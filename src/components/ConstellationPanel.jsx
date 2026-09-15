@@ -14,6 +14,8 @@ export default function ConstellationPanel({
   onClose,
   onSelectStar,
   onReset,
+  roadCount = 0,
+  onClearRoad,
 }) {
   const { count, warmth, starlight, tagRanking, months, brightest, anniversaries } = data
   const maxTag = Math.max(1, ...tagRanking.map((t) => t.count))
@@ -173,6 +175,21 @@ export default function ConstellationPanel({
               </ul>
             </section>
           </>
+        )}
+
+        {roadCount > 0 && (
+          <footer className="panelfoot">
+            <p>
+              별길에 잔별 <b>{roadCount}</b>개. 읽은 순서대로 이어진 길이에요 — 나에게만 보입니다.
+            </p>
+            <button
+              onClick={() => {
+                if (window.confirm('별길을 지울까요? 띄운 잔별은 그대로 남습니다.')) onClearRoad?.()
+              }}
+            >
+              별길 지우기
+            </button>
+          </footer>
         )}
 
         <footer className="panelfoot">

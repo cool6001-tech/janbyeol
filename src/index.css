@@ -505,6 +505,20 @@ ul {
   letter-spacing: 0.2em;
   color: var(--mist);
 }
+/* 이미 걸어온 자리 — 별길과 같은 색으로 */
+.meta em.seen {
+  letter-spacing: 0.08em;
+  color: rgba(255, 206, 158, 0.82);
+}
+.meta em.seen::before {
+  content: '·';
+  margin-right: 8px;
+  color: var(--mist);
+}
+.panelfoot b {
+  font-weight: 400;
+  color: var(--mist-hi);
+}
 .body {
   font-family: var(--serif);
   font-size: 16px;
