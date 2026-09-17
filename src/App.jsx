@@ -6,11 +6,13 @@ import TopBar from './components/TopBar.jsx'
 import Welcome from './components/Welcome.jsx'
 import Toast from './components/Toast.jsx'
 import ConstellationPanel from './components/ConstellationPanel.jsx'
+import Tutorial from './components/Tutorial.jsx'
 import { useJanbyeol } from './hooks/useJanbyeol.js'
 import { myConstellation, findKindred } from './lib/stats.js'
 import { buildGraph, buildOwnThreads, traceFrom, reachOf } from './lib/graph.js'
 import { distance, distanceToFit, cosmosDistance, FOCAL } from './lib/geometry.js'
 import { GALAXY_RADIUS } from './lib/galaxy.js'
+import { onboarding } from './lib/storage.js'
 
 /**
  * 하늘을 보는 두 가지 시점
@@ -62,6 +64,39 @@ function orbitRadiusFor(score) {
   return ORBIT_FAR - (ORBIT_FAR - ORBIT_NEAR) * t
 }
 
+/**
+ * 첫 안내를 보여줄까.
+ * 한 번도 끝까지 보지(또는 건너뛰지) 않은 사람에게만 뜹니다.
+ * 주소 끝에 `?tour`를 붙이면 언제든 처음 온 사람처럼 다시 볼 수 있어요.
+ */
+function shouldTour() {
+  try {
+    if (new URLSearchParams(window.location.search).has('tour')) return true
+  } catch {
+    /* 무시 */
+  }
+  return !onboarding.seen()
+}
+
+/** 안내가 보여줄 '누군가의 별' — 남이 쓴 잔별 중 이야기가 가장 많이 닿아 있는 것 */
+function pickDemoStar(stars, graph, myId) {
+  let best = null
+  let bestScore = -1
+  for (const s of stars) {
+    if (s.authorId === myId) continue
+    const score =
+      (graph.adj.get(s.id)?.length || 0) * 2 +
+      (s.replies?.length || 0) * 3 +
+      (s.photo || s.photoSeed ? 2 : 0) +
+      (s.warmth || 0) * 0.1
+    if (score > bestScore) {
+      best = s
+      bestScore = score
+    }
+  }
+  return best
+}
+
 export default function App() {
   const { me, stars, ready, addStar, toggleWarm, addReply, reset, read, readMap, markRead, clearRead } =
     useJanbyeol()
@@ -77,6 +112,9 @@ export default function App() {
   const [welcomeGone, setWelcomeGone] = useState(false)
   const [isNarrow, setIsNarrow] = useState(() => window.innerWidth <= 860)
   const [panelOpen, setPanelOpen] = useState(true) // 모바일 바텀시트가 펼쳐져 있는가
+  const [tourOpen, setTourOpen] = useState(shouldTour) // 처음 온 사람에게만
+  const [tourStep, setTourStep] = useState(null) // 안내가 지금 보여주는 장면
+  const [tourInset, setTourInset] = useState(0) // 안내 카드가 아래를 가리는 높이
   const toastTimer = useRef(0)
   const cardAnchorRef = useRef(null)
   // 창 크기가 바뀌었을 때 "지금 무엇을 보고 있었는지"를 리스너에서 읽기 위한 것
@@ -225,13 +263,14 @@ export default function App() {
    * 이만큼 하늘의 중심을 옮겨야 별이 시트나 상단바 뒤에 숨지 않습니다.
    */
   const bottomInset = useMemo(() => {
-    if (!isNarrow) return 0
+    // 안내 카드가 아래를 덮고 있는 동안에는 그 위로 하늘을 올립니다
+    if (!isNarrow) return tourInset
     const h = window.innerHeight
     if (showCard) return Math.min(h * 0.58, 520)
     if (mineMode && panelOpen) return h * 0.7
     if (mineMode) return 176 // 접힌 손잡이 + 그 위의 입력창
-    return 84
-  }, [isNarrow, showCard, mineMode, panelOpen])
+    return Math.max(84, tourInset)
+  }, [isNarrow, showCard, mineMode, panelOpen, tourInset])
 
   const topInset = isNarrow ? 58 : 0
 
@@ -462,6 +501,124 @@ export default function App() {
     [addReply, say]
   )
 
+  /* ---------- 첫 안내 ---------- */
+
+  const demoStar = useMemo(() => pickDemoStar(stars, graph, me.id), [stars, graph, me.id])
+  const demoId = demoStar?.id || null
+
+  const wholeView = useCallback(
+    () => ({ pos: { x: 0, y: 0, z: 0 }, dist: wholeGalaxy(), pitch: 0.92, hold: 0, key: Date.now() }),
+    [wholeGalaxy]
+  )
+
+  /**
+   * 장면마다 하늘이 스스로 움직입니다. 말로 설명하는 대신 보여주려고요.
+   *   잔별   — 누군가의 성단으로 다가가 별 하나하나가 보이게
+   *   읽기   — 그 별을 골라(카드는 열지 않음) 더 가까이, 온기의 파문이 번지게
+   *   이어진 빛 — 한 걸음 물러나, 곁으로 모여든 닮은 마음들과 이어진 선이 다 보이게
+   *   띄우기 — 다시 은하 전체
+   *   나의 성단 — 내 별들이 모인 자리로 (시점을 바꾸지는 않음)
+   * 저장된 좌표나 읽음 기록은 건드리지 않습니다.
+   */
+  useEffect(() => {
+    if (!tourOpen || !tourStep || !ready) return
+    const HOLD = 10 * 60 * 1000 // 안내를 읽는 동안 카메라가 제멋대로 돌아가지 않게
+    const demo = stars.find((s) => s.id === demoId)
+
+    const showing = tourStep === 'open' || tourStep === 'bond'
+    if (!showing) setSelectedId(null)
+
+    if (tourStep === 'star' && demo) {
+      setFocus({ pos: demo.pos, dist: fitDistance(520), pitch: 0.8, hold: HOLD, key: Date.now() })
+      return
+    }
+
+    // '읽기'부터는 그 별을 실제로 골라 둡니다 — 고른 별의 고리가 켜지고, 닿은 별빛이 번져요
+    if (showing && demo) {
+      setSelectedId(demo.id)
+      setCardOpen(false)
+    }
+
+    if (tourStep === 'open' && demo) {
+      setFocus({ pos: demo.pos, dist: fitDistance(300), pitch: 0.76, hold: HOLD, key: Date.now() })
+      return
+    }
+
+    if (tourStep === 'bond' && demo) {
+      const reached = traceFrom(graph.adj, demo.id, TRACE_DEPTH)
+      let outer = ANCHOR_CLEAR
+      for (const [nid, depth] of reached.depthOf) {
+        if (depth === 1) outer = Math.max(outer, orbitRadiusFor(graph.scoreOf(demo.id, nid)))
+        else if (depth === 2 && !isNarrow) outer = Math.max(outer, ORBIT_R2)
+      }
+      setFocus({ pos: demo.pos, dist: fitDistance(outer * 1.1), pitch: 0.82, hold: HOLD, key: Date.now() })
+      return
+    }
+
+    if (tourStep === 'mine' && constellation.mine.length) {
+      const mine = constellation.mine
+      const sum = mine.reduce((a, s) => ({ x: a.x + s.pos.x, y: a.y + s.pos.y, z: a.z + s.pos.z }), {
+        x: 0,
+        y: 0,
+        z: 0,
+      })
+      const c = { x: sum.x / mine.length, y: sum.y / mine.length, z: sum.z / mine.length }
+      const spread = Math.max(60, ...mine.map((s) => distance(s.pos, c)))
+      setFocus({ pos: c, dist: fitDistance(spread * 1.6), pitch: 0.74, hold: HOLD, key: Date.now() })
+      return
+    }
+
+    setFocus({ ...wholeView(), hold: HOLD })
+    // tourInset이 바뀌면(카드 높이를 잰 뒤) 한 번 더 맞춥니다
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tourOpen, tourStep, ready, demoId, tourInset, isNarrow])
+
+  /* '읽고, 건네기' 장면 — 온기가 더해질 때 번지는 파문을 천천히 되풀이 */
+  useEffect(() => {
+    if (!tourOpen || tourStep !== 'open' || !demoId) return
+    const pulse = () => setRipple({ id: demoId, key: Date.now() })
+    const first = setTimeout(pulse, 900)
+    const loop = setInterval(pulse, 2800)
+    return () => {
+      clearTimeout(first)
+      clearInterval(loop)
+    }
+  }, [tourOpen, tourStep, demoId])
+
+  /** 안내 다시 보기 — 지금 열려 있던 것들을 걷고 은하 전체에서 시작 */
+  const openTour = useCallback(() => {
+    setSelectedId(null)
+    setCardOpen(false)
+    setReReading(null)
+    setMineMode(false)
+    setKindred({ anchorId: null, ids: [] })
+    setWelcomeGone(true)
+    setTourStep(null)
+    setTourOpen(true)
+  }, [])
+
+  /**
+   * 안내를 마치는 네 갈래 — skip(건너뛰기) · done · read(별 하나 열어보기) · write(한 줄 쓰기)
+   * 어느 쪽이든 '봤다'고 기록합니다. 다시 보고 싶으면 오른쪽 위 ? 가 있으니까요.
+   */
+  const finishTour = useCallback(
+    (action) => {
+      onboarding.markSeen()
+      setTourOpen(false)
+      setTourStep(null)
+      setTourInset(0)
+      setWelcomeGone(true)
+      setSelectedId(null)
+      setCardOpen(false)
+      if (action === 'read' && demoId) {
+        handleSelect(demoId)
+        return
+      }
+      setFocus(wholeView())
+    },
+    [demoId, handleSelect, wholeView]
+  )
+
   // 좁은 화면에서는 카드와 회고 패널이 같은 자리를 쓰므로 한 번에 하나만 펼친다
   const panelVisible = mineMode && !(isNarrow && showCard)
 
@@ -501,9 +658,10 @@ export default function App() {
           mineMode={mineMode}
           onToggleMine={toggleMine}
           onCosmos={backToCosmos}
+          onHelp={openTour}
         />
 
-        {!welcomeGone && ready && <Welcome gone={welcomeGone} layout={welcomeLayout} />}
+        {!welcomeGone && ready && !tourOpen && <Welcome gone={welcomeGone} layout={welcomeLayout} />}
 
         <div className="bottom">
           <p className="creed">
@@ -556,6 +714,16 @@ export default function App() {
       )}
 
       <Toast message={toast} />
+
+      {tourOpen && ready && (
+        <Tutorial
+          narrow={isNarrow}
+          reducedMotion={reducedMotion}
+          onStep={setTourStep}
+          onInset={setTourInset}
+          onFinish={finishTour}
+        />
+      )}
     </>
   )
 }

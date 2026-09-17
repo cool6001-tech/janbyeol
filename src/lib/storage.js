@@ -181,6 +181,40 @@ export const readLog = {
 }
 
 /* ---------------------------------------------------------------
+   첫 안내(튜토리얼)를 봤는지
+
+   읽음처럼 **내 것**입니다. 잔별 계약 밖에 따로 둡니다.
+   끝까지 보거나 '건너뛰기'를 눌렀을 때만 기록해요. 도중에 창을 닫았다면
+   아직 이 하늘을 다 소개받지 못한 것이니, 다음에 한 번 더 보여줍니다.
+
+   저장이 막힌 환경(사생활 보호 모드 등)에서는 지금 열린 화면에서만 기억합니다.
+   '안내 다시 보기'를 닫은 뒤 곧바로 또 뜨는 일은 없지만, 새로고침하면 다시 보일 수 있어요.
+--------------------------------------------------------------- */
+const TOUR_KEY = 'janbyeol.tour.v1'
+let tourSeenInMemory = false
+
+export const onboarding = {
+  /** 이미 안내를 마쳤는가 */
+  seen() {
+    return tourSeenInMemory || Boolean(safeGet(TOUR_KEY))
+  },
+  /** 안내를 마쳤다고 기록 */
+  markSeen() {
+    tourSeenInMemory = true
+    safeSet(TOUR_KEY, new Date().toISOString())
+  },
+  /** 다시 처음 방문한 사람처럼 (개발·테스트용) */
+  reset() {
+    tourSeenInMemory = false
+    try {
+      window.localStorage.removeItem(TOUR_KEY)
+    } catch {
+      /* 무시 */
+    }
+  },
+}
+
+/* ---------------------------------------------------------------
    서버 저장으로 넘어갈 때 — 이 아래만 바꾸면 됩니다.
 
    import { createClient } from '@supabase/supabase-js'
