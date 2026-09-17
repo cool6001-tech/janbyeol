@@ -122,7 +122,14 @@ export default function StarCard({
         </div>
       </div>
 
-      <form className="replybar" onSubmit={submit}>
+      {/* 별빛 이어가기 — 눈에 잘 띄지 않던 자리라, 작은 별 하나가 은은하게 반짝이며 부릅니다.
+          쓰기 시작하면 반짝임은 멈추고 또렷하게 켜진 채로, '잇기'가 따뜻해집니다. */}
+      <form className={`replybar${draft.trim() ? ' ready' : ''}`} onSubmit={submit}>
+        <span className="replyspark" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 2.5c.6 4.6 2.3 7.3 9.5 9.5-7.2 2.2-8.9 4.9-9.5 9.5-.6-4.6-2.3-7.3-9.5-9.5 7.2-2.2 8.9-4.9 9.5-9.5z" />
+          </svg>
+        </span>
         <input
           id="reply-input"
           value={draft}

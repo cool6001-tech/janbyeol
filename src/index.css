@@ -306,8 +306,78 @@ ul {
   flex-direction: column;
   gap: 9px;
 }
+/* 입력창의 별 — 별빛 이어가기와 같은 박자, 대신 '띄우기'와 같은 따뜻한 색.
+   남의 별에 건네는 말은 푸른 별, 내 이야기를 띄우는 자리는 따뜻한 별입니다. */
+.composer {
+  position: relative;
+}
+.composer::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 18px;
+  right: 18px;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(255, 176, 103, 0), rgba(255, 214, 170, 0.7) 50%, rgba(255, 176, 103, 0));
+  background-size: 34% 100%;
+  background-repeat: no-repeat;
+  background-position: -60% 0;
+  opacity: 0;
+  pointer-events: none;
+}
+.composer.idle::before {
+  animation: replySweep 8s ease-in-out 1.5s infinite;
+}
+.composer:focus-within::before {
+  opacity: 1;
+  background-size: 100% 100%;
+  background-position: 0 0;
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 176, 103, 0),
+    rgba(255, 214, 170, 0.45) 20%,
+    rgba(255, 214, 170, 0.45) 80%,
+    rgba(255, 176, 103, 0)
+  );
+}
+.composespark {
+  position: absolute;
+  left: 14px;
+  top: 19px; /* 첫 줄 글자의 한가운데 */
+  width: 14px;
+  height: 14px;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+.composespark::before {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 196, 140, 0.34), rgba(255, 196, 140, 0) 70%);
+  opacity: 0.6;
+}
+.composespark svg {
+  position: relative;
+  width: 14px;
+  height: 14px;
+  fill: #ffe2c4;
+  filter: drop-shadow(0 0 4px rgba(255, 190, 130, 0.9));
+}
+.composer.idle .composespark svg {
+  animation: replyTwinkle 3.6s ease-in-out infinite;
+}
+.composer.idle .composespark::before {
+  animation: replyHalo 3.6s ease-in-out infinite;
+}
+/* 비어 있을 때만 안내 글자가 별과 같은 박자로 숨 쉽니다 (쓴 글자는 흔들리지 않게) */
+.composer.idle textarea {
+  animation: replyBreathe 3.6s ease-in-out infinite;
+}
 .composer textarea {
   width: 100%;
+  padding: 0 0 0 24px; /* 별 자리 */
   resize: none;
   border: 0;
   background: transparent;
@@ -320,7 +390,7 @@ ul {
   max-height: 260px;
 }
 .composer textarea::placeholder {
-  color: rgba(126, 138, 166, 0.75);
+  color: rgba(214, 206, 196, 0.82);
   font-family: var(--serif);
 }
 .crow {
@@ -683,14 +753,110 @@ ul {
   padding-bottom: 12px;
 }
 
+/* 별빛 이어가기
+   예전에는 카드 맨 아래 옅은 글자뿐이라 있는 줄도 몰랐어요.
+   · 왼쪽의 작은 별이 별처럼 은은하게 반짝이고
+   · 윗선을 따라 빛 한 줄기가 느리게 지나가며
+   · 안내 글자도 조금 더 밝게, 천천히 숨 쉬듯
+   쓰기 시작하면(초점) 반짝임은 멈추고 또렷하게 켜진 채로 기다립니다. */
 .replybar {
+  position: relative;
   flex: 0 0 auto;
   display: flex;
-  gap: 8px;
+  gap: 10px;
   align-items: center;
-  padding: 11px 14px 13px;
+  padding: 12px 14px 13px 16px;
   border-top: 1px solid var(--line);
-  background: rgba(6, 9, 18, 0.5);
+  background: linear-gradient(180deg, rgba(143, 179, 255, 0.045), rgba(6, 9, 18, 0.5) 70%);
+  transition: background 0.4s;
+}
+.replybar::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    rgba(143, 179, 255, 0) 0%,
+    rgba(190, 212, 255, 0.75) 50%,
+    rgba(143, 179, 255, 0) 100%
+  );
+  background-size: 40% 100%;
+  background-repeat: no-repeat;
+  background-position: -60% 0;
+  animation: replySweep 7s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes replySweep {
+  0%,
+  30% {
+    background-position: -60% 0;
+    opacity: 0;
+  }
+  38% {
+    opacity: 1;
+  }
+  72% {
+    opacity: 1;
+  }
+  80%,
+  100% {
+    background-position: 160% 0;
+    opacity: 0;
+  }
+}
+.replyspark {
+  position: relative;
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  display: grid;
+  place-items: center;
+}
+/* 별 뒤의 옅은 번짐 */
+.replyspark::before {
+  content: '';
+  position: absolute;
+  inset: -7px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(160, 190, 255, 0.35), rgba(160, 190, 255, 0) 70%);
+  animation: replyHalo 3.2s ease-in-out infinite;
+}
+.replyspark svg {
+  position: relative;
+  width: 14px;
+  height: 14px;
+  fill: #dbe6ff;
+  filter: drop-shadow(0 0 4px rgba(170, 200, 255, 0.9));
+  animation: replyTwinkle 3.2s ease-in-out infinite;
+}
+@keyframes replyTwinkle {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(0.78) rotate(0deg);
+  }
+  45% {
+    opacity: 1;
+    transform: scale(1.06) rotate(12deg);
+  }
+  60% {
+    opacity: 0.85;
+    transform: scale(0.95) rotate(8deg);
+  }
+}
+@keyframes replyHalo {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.8);
+  }
+  45% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
 }
 .replybar input {
   flex: 1;
@@ -703,19 +869,71 @@ ul {
   font-size: var(--fs-sm);
 }
 .replybar input::placeholder {
-  color: rgba(126, 138, 166, 0.7);
+  color: rgba(186, 202, 238, 0.86);
+}
+/* 비어 있을 때만 안내 글자가 별과 같은 박자로 숨 쉽니다 */
+.replybar:not(.ready):not(:focus-within) input {
+  animation: replyBreathe 3.2s ease-in-out infinite;
+}
+@keyframes replyBreathe {
+  0%,
+  100% {
+    opacity: 0.72;
+  }
+  45% {
+    opacity: 1;
+  }
 }
 .replybar button {
   background: none;
-  border: 0;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 5px 10px;
+  margin-right: -6px;
   color: var(--cool);
   font-size: var(--fs-xs);
   letter-spacing: 0.12em;
   cursor: pointer;
   white-space: nowrap;
+  transition: color 0.3s, border-color 0.3s, background 0.3s, box-shadow 0.3s;
 }
 .replybar button:hover {
   color: #c6d8ff;
+}
+
+/* 쓰는 중 — 반짝임은 멈추고, 또렷하게 켜진 채로 */
+.replybar:focus-within {
+  background: linear-gradient(180deg, rgba(143, 179, 255, 0.08), rgba(6, 9, 18, 0.5) 80%);
+}
+.replybar:focus-within::before {
+  animation: none;
+  opacity: 1;
+  background-size: 100% 100%;
+  background-position: 0 0;
+  background-image: linear-gradient(
+    90deg,
+    rgba(143, 179, 255, 0),
+    rgba(190, 212, 255, 0.55) 20%,
+    rgba(190, 212, 255, 0.55) 80%,
+    rgba(143, 179, 255, 0)
+  );
+}
+.replybar:focus-within .replyspark svg,
+.replybar:focus-within .replyspark::before {
+  animation: none;
+  opacity: 1;
+  transform: none;
+}
+/* 한 글자라도 쓰면 '잇기'가 따뜻해집니다 */
+.replybar.ready button {
+  color: #ffe0c2;
+  border-color: rgba(255, 176, 103, 0.4);
+  background: rgba(255, 176, 103, 0.12);
+  box-shadow: 0 0 16px rgba(255, 150, 90, 0.2);
+}
+.replybar.ready .replyspark svg {
+  fill: #ffe2c4;
+  filter: drop-shadow(0 0 5px rgba(255, 190, 130, 0.95));
 }
 .close {
   position: absolute;
@@ -2008,6 +2226,14 @@ ul {
     min-height: 26px;
     max-height: 180px;
   }
+  .composer.compact .composespark {
+    left: 12px;
+    top: 13px;
+  }
+  .composer.compact::before {
+    left: 16px;
+    right: 16px;
+  }
   .composer.compact.folded .crow,
   .composer.compact.folded .thumb {
     display: none;
@@ -2139,8 +2365,19 @@ ul {
   .tour-hole::after,
   .tour-art .twinkle,
   .tour-faux-warm,
-  .cardwrap.on .cardnotch {
+  .cardwrap.on .cardnotch,
+  .replybar::before,
+  .replyspark::before,
+  .replyspark svg,
+  .replybar:not(.ready):not(:focus-within) input,
+  .composer.idle::before,
+  .composer.idle .composespark svg,
+  .composer.idle .composespark::before,
+  .composer.idle textarea {
     animation: none;
+  }
+  .replyspark svg {
+    opacity: 1;
   }
   .hint,
   .hint small {

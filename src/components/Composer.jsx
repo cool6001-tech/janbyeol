@@ -17,6 +17,8 @@ export default function Composer({ onSubmit, onFocus, compact = false }) {
   const areaRef = useRef(null)
 
   const folded = compact && !typing && !text.trim() && !photo
+  /** 아무도 쓰고 있지 않은 빈 입력창 — 이때만 별이 반짝이며 부릅니다 */
+  const idle = !typing && !text.trim() && !photo
 
   const grow = (el) => {
     el.style.height = 'auto'
@@ -46,7 +48,16 @@ export default function Composer({ onSubmit, onFocus, compact = false }) {
   }
 
   return (
-    <form className={`composer${compact ? ' compact' : ''}${folded ? ' folded' : ''}`} onSubmit={submit}>
+    <form
+      className={`composer${compact ? ' compact' : ''}${folded ? ' folded' : ''}${idle ? ' idle' : ''}`}
+      onSubmit={submit}
+    >
+      {/* 오늘의 이야기를 부르는 작은 별 — 비어 있을 땐 은은하게 반짝이고, 쓰기 시작하면 또렷하게 켜집니다 */}
+      <span className="composespark" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 2.5c.6 4.6 2.3 7.3 9.5 9.5-7.2 2.2-8.9 4.9-9.5 9.5-.6-4.6-2.3-7.3-9.5-9.5 7.2-2.2 8.9-4.9 9.5-9.5z" />
+        </svg>
+      </span>
       <textarea
         id="draft"
         ref={areaRef}
