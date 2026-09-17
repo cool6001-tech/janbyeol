@@ -58,6 +58,8 @@ export default function Galaxy({
   anchored,
   bottomInset,
   topInset = 0,
+  rightInset = 0,
+  leftInset = 0,
   initialDist = 3400,
   readTrail,
 }) {
@@ -143,6 +145,8 @@ export default function Galaxy({
     anchored,
     bottomInset,
     topInset,
+    rightInset,
+    leftInset,
   }
 
   /* 은하는 한 번만 만든다 (같은 씨앗 → 언제나 같은 하늘) */
@@ -279,6 +283,10 @@ export default function Galaxy({
       // 좁은 화면에서 별이 시트 뒤에 숨지 않게 하는 건 이 두 줄입니다.
       const oyTarget = ((p.topInset || 0) - (p.bottomInset || 0)) / 2
       cam.oy += (oyTarget - cam.oy) * 0.08
+      // 넓은 화면에서는 왼쪽 패널과 오른쪽 카드가 차지한 만큼 하늘이 비켜섭니다.
+      // 둘 다 열려 있으면 상쇄되어 가운데 그대로 남습니다.
+      const oxTarget = ((p.leftInset || 0) - (p.rightInset || 0)) / 2
+      cam.ox += (oxTarget - cam.ox) * 0.08
 
       ctx.clearRect(0, 0, width, height)
       ctx.globalCompositeOperation = 'lighter'
@@ -384,11 +392,36 @@ export default function Galaxy({
         : null
       const anchorPos = anchor ? anchor.pos : null
 
+      const clearR = p.gather?.clear || 0
+
       for (const star of p.stars) {
         const rt = runtimeOf(star)
         let target = star.pos
-        const slot = anchorPos && star.id !== anchor.id ? slots.get(star.id) : null
-        if (slot) target = orbitSlot(anchorPos, slot.i, slot.n, slot.r, slot.seed)
+        const other = anchorPos && star.id !== anchor.id
+        const slot = other ? slots.get(star.id) : null
+        if (slot) {
+          target = orbitSlot(anchorPos, slot.i, slot.n, slot.r, slot.seed)
+        } else if (other && clearR) {
+          /* 끌어오지 않는 별이라도 고른 별 위에 포개지지는 않게 합니다.
+             같은 사람의 잔별은 성단 반지름(105) 안에 모여 있어서, 그냥 두면
+             고른 별과 겹쳐 어느 것을 골랐는지조차 보이지 않았어요.
+             자리를 바꾸는 게 아니라 있던 방향 그대로 바깥으로 밀어냅니다. */
+          const dx = target.x - anchorPos.x
+          const dy = target.y - anchorPos.y
+          const dz = target.z - anchorPos.z
+          const d = Math.hypot(dx, dy, dz)
+          // 다 같은 거리로 밀면 이번엔 자기들끼리 한 줄로 뭉칩니다.
+          // 별마다 조금씩 다른 거리로 물러나게 흩뜨립니다.
+          const want = clearR * (0.85 + (rt.phase / 6.283) * 0.5)
+          if (d > 0.001 && d < want) {
+            const k = want / d
+            target = {
+              x: anchorPos.x + dx * k,
+              y: anchorPos.y + dy * k,
+              z: anchorPos.z + dz * k,
+            }
+          }
+        }
         const ease = slot ? 0.055 : 0.035
         rt.x += (target.x - rt.x) * ease
         rt.y += (target.y - rt.y) * ease
@@ -707,15 +740,16 @@ export default function Galaxy({
           }
           const cw = scene.cardW || 340
           const ch = scene.cardH || 320
-          const GAP = 46
-          const toRight = anchorView.pr.sx + GAP + cw <= width - 16
-          const x = toRight
-            ? Math.min(width - cw - 16, anchorView.pr.sx + GAP)
-            : Math.max(16, anchorView.pr.sx - GAP - cw)
+
+          /* 카드는 오른쪽에 자리를 잡습니다. 별 바로 옆에 붙이면 곁으로 모여든
+             잔별들이 카드 뒤로 들어가 버려요. 대신 **세로로는 여전히 별을 따라**
+             움직이고 꼬리선이 별을 가리키므로, 어느 별의 글인지는 그대로 읽힙니다.
+             하늘은 그만큼 왼쪽으로 물러나 있습니다(cam.ox). */
+          const x = width - cw - 20
           const y = Math.max(72, Math.min(height - ch - 20, anchorView.pr.sy - ch / 2))
           wrap.style.transform = `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0)`
 
-          const ex = toRight ? x : x + cw
+          const ex = x
           const ey = Math.max(y + 20, Math.min(y + ch - 20, anchorView.pr.sy))
           ctx.strokeStyle = 'rgba(255,206,158,0.3)'
           ctx.lineWidth = 1

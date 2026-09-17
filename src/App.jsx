@@ -39,9 +39,22 @@ const TRACE_DEPTH = 4
  * 코앞에(ORBIT_NEAR), 3점짜리는 그 바깥에(ORBIT_FAR) 섭니다.
  * 점수는 화면에 숫자로 나오지 않아요 — 거리로만 말합니다.
  */
-const ORBIT_NEAR = 155 // 10점 — 나와 가장 가까운 마음
-const ORBIT_FAR = 330 // 겨우 이어진 정도
-const ORBIT_R2 = 500 // 2겹 — 그 잔별이 닿은 잔별
+const ORBIT_NEAR = 320 // 10점 — 나와 가장 가까운 마음
+const ORBIT_FAR = 520 // 겨우 이어진 정도
+const ORBIT_R2 = 820 // 2겹 — 그 잔별이 닿은 잔별 (넓은 화면에서만)
+
+/**
+ * 고른 별 둘레에 비워 두는 간격.
+ *
+ * 같은 사람의 잔별은 성단 반지름(105) 안에 모여 있습니다. 궤도가 155에서
+ * 시작하던 때는 이 형제들이 고른 별 위에 포개져서, 어느 별을 고른 건지조차
+ * 알아보기 어려웠어요. 끌어오지 않는 별이라도 이만큼은 밀어냅니다.
+ */
+const ANCHOR_CLEAR = 240
+
+/** 넓은 화면에서 좌우를 가리는 것들의 너비 — 이만큼 하늘이 비켜섭니다 */
+const CARD_DOCK = 384 // 오른쪽 잔별 카드
+const PANEL_DOCK = 372 // 왼쪽 나의 성단 패널
 
 /** 점수(0~10)를 궤도 반지름으로 */
 function orbitRadiusFor(score) {
@@ -161,13 +174,22 @@ export default function App() {
    * 닮은 마음들(공감 성단)이 모입니다.
    */
   const gather = useMemo(() => {
-    const empty = { anchorId: null, ring1: [], ring2: [], radiusOf: () => ORBIT_FAR, r2: ORBIT_R2 }
+    const empty = {
+      anchorId: null,
+      ring1: [],
+      ring2: [],
+      radiusOf: () => ORBIT_FAR,
+      r2: ORBIT_R2,
+      clear: ANCHOR_CLEAR,
+    }
     if (selectedId && trace) {
       const ring1 = []
       const ring2 = []
       for (const [id, depth] of trace.depthOf) {
         if (depth === 1) ring1.push(id)
-        else if (depth === 2) ring2.push(id)
+        // 좁은 화면에서는 2겹을 곁으로 부르지 않습니다. 열두 개를 390×300 띠에
+        // 욱여넣으면 별이 서로 포개져서, 정작 눌러야 할 1겹이 안 보여요.
+        else if (depth === 2 && !isNarrow) ring2.push(id)
       }
       if (!ring1.length && !ring2.length) return empty
       // 닮은 만큼 가까이 — 가장 닮은 마음이 코앞에 섭니다
@@ -178,6 +200,7 @@ export default function App() {
         ring2,
         radiusOf: (id) => orbitRadiusFor(graph.scoreOf(selectedId, id)),
         r2: ORBIT_R2,
+        clear: ANCHOR_CLEAR,
       }
     }
     if (kindred.anchorId) {
@@ -187,10 +210,11 @@ export default function App() {
         ring2: [],
         radiusOf: (id) => orbitRadiusFor(graph.scoreOf(kindred.anchorId, id) || 6),
         r2: ORBIT_R2,
+        clear: ANCHOR_CLEAR,
       }
     }
     return empty
-  }, [selectedId, trace, kindred, graph])
+  }, [selectedId, trace, kindred, graph, isNarrow])
 
   const showCard = Boolean(selected && cardOpen)
   /** 회고 시트를 접어둔 채 하늘을 보고 있는 상태 — 입력창은 그 손잡이 위로 */
@@ -212,6 +236,14 @@ export default function App() {
   const topInset = isNarrow ? 58 : 0
 
   /**
+   * 넓은 화면에서 좌우가 가려지는 너비 — 왼쪽은 회고 패널, 오른쪽은 카드.
+   * 세로로 시트에 가린 만큼 하늘을 위로 올리듯, 가로로도 똑같이 옮깁니다.
+   * 둘 다 열려 있으면 서로 상쇄되어 하늘은 가운데 그대로 남습니다.
+   */
+  const rightInset = !isNarrow && showCard ? CARD_DOCK : 0
+  const leftInset = !isNarrow && mineMode ? PANEL_DOCK : 0
+
+  /**
    * 첫 화면 문구를 은하와 겹치지 않게 놓는 자리 (좁은 화면에서만).
    *
    * 은하는 화면 한가운데를 차지합니다. 그 위에 글자를 올리면 아무리 밝게 해도
@@ -231,18 +263,27 @@ export default function App() {
     // 웰컴은 전체 은하 시점에서만 보이므로 그때의 여백으로 계산하면 충분합니다
   }, [isNarrow, wholeGalaxy, topInset, bottomInset])
 
-  /** 반지름 radius의 무리가 (가려진 곳을 빼고) 화면에 들어오는 카메라 거리 */
+  /**
+   * 반지름 radius의 무리가 (가려진 곳을 빼고) 화면에 들어오는 카메라 거리.
+   *
+   * `withCard`를 주는 이유: 별을 누르는 순간의 여백은 아직 카드가 열리기 **전**
+   * 값입니다. 그걸로 계산하면 카드가 올라온 뒤 실제 띠는 200px쯤 좁아져 있어서,
+   * 별무리가 시트 밖으로 밀려 나갔어요.
+   */
   const fitDistance = useCallback(
-    (radius) => {
+    (radius, withCard = false) => {
       const w = window.innerWidth
       const h = window.innerHeight
       const narrow = w <= 860
-      const usableW = narrow ? w - 32 : w - 420 // 데스크톱은 카드가 한쪽을 차지한다
-      const usableH = narrow ? h - bottomInset - 90 : h - 150
+      const inset = withCard && narrow ? Math.min(h * 0.58, 520) : bottomInset
+      // 데스크톱에서는 카드와 패널이 좌우를 차지하므로 그만큼 빼고 담는다
+      const sides = narrow ? 32 : (withCard ? CARD_DOCK : 0) + (mineMode ? PANEL_DOCK : 0) + 48
+      const usableW = w - sides
+      const usableH = narrow ? h - inset - 90 : h - 150
       const margin = Math.max(110, Math.min(usableW, usableH) * 0.45)
       return Math.max(340, Math.min(4600, distanceToFit(radius, margin)))
     },
-    [bottomInset]
+    [bottomInset, mineMode]
   )
 
   const lookAt = useCallback((star, options = {}) => {
@@ -293,15 +334,15 @@ export default function App() {
       if (isNarrow) setPanelOpen(false)
 
       const reached = traceFrom(graph.adj, id, TRACE_DEPTH)
-      let outer = 0
+      let outer = ANCHOR_CLEAR
       for (const [nid, depth] of reached.depthOf) {
         if (depth === 1) outer = Math.max(outer, orbitRadiusFor(graph.scoreOf(id, nid)))
-        else if (depth === 2) outer = Math.max(outer, ORBIT_R2)
+        else if (depth === 2 && !isNarrow) outer = Math.max(outer, ORBIT_R2)
       }
 
       setFocus({
         pos: star.pos, // 고른 별이 곧 화면의 중심
-        dist: outer ? fitDistance(outer * 1.08) : 420,
+        dist: fitDistance(outer * 1.1, true),
         pitch: 0.82,
         hold: 14000,
         key: Date.now() + Math.random(),
@@ -443,6 +484,8 @@ export default function App() {
         anchored={!isNarrow}
         bottomInset={bottomInset}
         topInset={topInset}
+        rightInset={rightInset}
+        leftInset={leftInset}
         initialDist={wholeGalaxy()}
         readTrail={readTrail}
       />
