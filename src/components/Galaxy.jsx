@@ -435,6 +435,9 @@ export default function Galaxy({
           const depth = traced.get(star.id)
           const arrived = depth !== undefined && traceElapsed >= (depth - 1) * REVEAL_STEP
           dimTarget = arrived ? Math.max(0.24, 1 - 0.19 * depth) : 0.08
+          // 곁으로 모여들지 않은 먼 겹(3겹 이상 · 좁은 화면의 2겹)은 제자리에서 조용히 저문다.
+          // 선도 긋지 않으니, 밝게 남아 있으면 '왜 켜져 있지?' 하고 눈만 헷갈려요.
+          if (arrived && depth > 0 && !slots.has(star.id)) dimTarget = Math.min(dimTarget, 0.2)
         } else if (p.mineMode && star.authorId !== p.myId) {
           dimTarget = 0.12
         }
@@ -463,8 +466,22 @@ export default function Galaxy({
         if (link.cluster) alpha += 0.14
         if (!traced && (p.selectedId === link.a || p.selectedId === link.b)) alpha += 0.14
         alpha *= Math.min(A.rt.dim, B.rt.dim)
-        // 별빛이 번져나가는 중에는 기존 선이 배경으로 물러난다
-        if (traced) alpha *= isOwn ? 0.7 : 0.4
+
+        /* 선이 너무 많아 서로 겹쳐 읽히지 않던 문제.
+           1) 별 하나를 고른 동안에는 **그 별에서 번져나간 별빛만** 남깁니다.
+              배경의 공감 그물과 남의 이야기 줄기는 잠시 꺼 두고,
+              고른 별을 쓴 사람의 줄기만 옅게 둡니다.
+           2) 평소에도 화면을 길게 가로지르는 선일수록 옅게 — 가까운 마음끼리의
+              짧은 선이 먼저 읽히고, 먼 선은 은하의 결처럼 뒤로 물러납니다. */
+        if (traced) {
+          const selAuthor = byId.get(p.selectedId)?.star.authorId
+          if (!isOwn || link.authorId !== selAuthor) continue
+          alpha *= 0.55
+        } else if (!link.cluster) {
+          const span = Math.min(width, height)
+          const len = Math.hypot(B.pr.sx - A.pr.sx, B.pr.sy - A.pr.sy)
+          if (len > span * 0.45) alpha *= Math.max(0.3, 1 - (len - span * 0.45) / span)
+        }
         if (alpha < 0.004) continue
 
         const grd = ctx.createLinearGradient(A.pr.sx, A.pr.sy, B.pr.sx, B.pr.sy)
@@ -565,7 +582,11 @@ export default function Galaxy({
          누른 잔별에서 1겹, 2겹, 3겹으로 차례차례 뻗어나갑니다.
          선 끝에는 빛이 실제로 건너가는 게 보이도록 작은 점이 달려 있습니다. */
       if (traced && p.trace.edges.length) {
+        const gathered = (id) => id === p.selectedId || slots.has(id)
         for (const e of p.trace.edges) {
+          // 곁으로 모여든 별들 사이의 별빛만 긋습니다. 아직 제자리에 있는 먼 겹까지
+          // 이으면 선이 화면을 가로질러 고른 별 둘레가 오히려 읽히지 않았어요.
+          if (!gathered(e.a) || !gathered(e.b)) continue
           const A = byId.get(e.a)
           const B = byId.get(e.b)
           if (!A?.pr || !B?.pr) continue
@@ -726,12 +747,22 @@ export default function Galaxy({
       }
 
       /* 카드는 고른 별 옆에 떠 있습니다.
-         React가 매 프레임 다시 그리면 입력창이 버벅이므로, 좌표만 여기서
-         DOM에 직접 써넣습니다. 그리고 별과 카드를 얇은 꼬리선으로 잇습니다. */
+         React가 매 프레임 다시 그리면 입력창이 버벅이므로, 좌표만 여기서 DOM에 직접 써넣습니다.
+
+         예전에는 카드를 늘 화면 오른쪽 끝에 붙이고 긴 꼬리선으로 별을 가리켰어요.
+         별과 카드가 550px쯤 떨어져서 '이 별의 글'이라는 게 바로 읽히지 않았고,
+         꼬리선은 곁으로 모인 별들의 선과 겹쳐 오히려 헷갈렸습니다.
+
+         이제는
+           · 카드가 **곁으로 모여든 별무리 바로 바깥**에 섭니다. 카드 높이에 걸치는 별들만
+             피하면 되므로, 위아래로 비켜 있는 별 때문에 멀어지지 않아요.
+             (별이 모여드는 도중의 위치가 아니라 **도착할 자리**로 재서 카드가 흔들리지 않습니다)
+           · 긴 선 대신, 카드를 여는 순간 별에서 카드로 **빛 한 점이 건너가고**,
+             카드 가장자리에는 별의 높이에 맞춰 같은 색의 작은 빛(.cardnotch)이 남습니다. */
       const wrap = p.cardAnchorRef?.current
       const anchorView = p.cardOpen && p.selectedId ? byId.get(p.selectedId) : null
       if (wrap && p.anchored && anchorView?.pr) {
-        const cardEl = wrap.firstElementChild
+        const cardEl = wrap.querySelector('.card')
         if (cardEl) {
           if (now - (scene.cardMeasured || 0) > 240) {
             scene.cardW = cardEl.offsetWidth || 340
@@ -740,24 +771,82 @@ export default function Galaxy({
           }
           const cw = scene.cardW || 340
           const ch = scene.cardH || 320
+          const sx = anchorView.pr.sx
+          const sy = anchorView.pr.sy
 
-          /* 카드는 오른쪽에 자리를 잡습니다. 별 바로 옆에 붙이면 곁으로 모여든
-             잔별들이 카드 뒤로 들어가 버려요. 대신 **세로로는 여전히 별을 따라**
-             움직이고 꼬리선이 별을 가리키므로, 어느 별의 글인지는 그대로 읽힙니다.
-             하늘은 그만큼 왼쪽으로 물러나 있습니다(cam.ox). */
-          const x = width - cw - 20
-          const y = Math.max(72, Math.min(height - ch - 20, anchorView.pr.sy - ch / 2))
+          const y = Math.max(72, Math.min(height - ch - 20, sy - ch / 2))
+
+          // 카드 높이에 걸치는, 곁으로 모여들 별들이 오른쪽으로 어디까지 뻗는가
+          let reach = 64 // 고른 별의 고리
+          if (anchorPos) {
+            for (const [, slot] of slots) {
+              const q = project(orbitSlot(anchorPos, slot.i, slot.n, slot.r, slot.seed), cam, width, height)
+              if (!q || q.sx <= sx) continue
+              if (q.sy < y - 24 || q.sy > y + ch + 24) continue
+              reach = Math.max(reach, q.sx - sx + 22) // 별의 번짐까지
+            }
+          }
+          const CARD_GAP = 30
+          const wantX = Math.min(width - cw - 20, sx + reach + CARD_GAP)
+
+          // 다른 별을 고르면 새로 자리를 잡고, 같은 별이면 부드럽게 따라갑니다
+          if (scene.cardFor !== p.selectedId) {
+            scene.cardFor = p.selectedId
+            scene.cardX = wantX
+            scene.cardLinkAt = now + 320 // 카드가 떠오르기 시작한 뒤에 건너가도록
+          } else {
+            scene.cardX += (wantX - scene.cardX) * 0.12
+          }
+          const x = scene.cardX
           wrap.style.transform = `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0)`
 
-          const ex = x
-          const ey = Math.max(y + 20, Math.min(y + ch - 20, anchorView.pr.sy))
-          ctx.strokeStyle = 'rgba(255,206,158,0.3)'
-          ctx.lineWidth = 1
-          ctx.beginPath()
-          ctx.moveTo(anchorView.pr.sx, anchorView.pr.sy)
-          ctx.lineTo(ex, ey)
-          ctx.stroke()
+          // 카드 가장자리의 작은 빛 — 별의 높이에 맞춰 (카드 모서리 둥근 곳은 피함)
+          const ny = Math.max(28, Math.min(ch - 28, sy - y))
+          wrap.style.setProperty('--notch-y', `${Math.round(ny)}px`)
+
+          // 여는 순간 한 번, 별에서 카드로 건너가는 빛
+          const flight = (now - (scene.cardLinkAt || 0)) / 720
+          if (!reduced && flight >= 0 && flight < 1.35) {
+            const ex = x
+            const ey = y + ny
+            const e = Math.min(1, flight)
+            const ease = 1 - Math.pow(1 - e, 3)
+            const hx = sx + (ex - sx) * ease
+            const hy = sy + (ey - sy) * ease
+            if (flight < 1) {
+              // 꼬리는 짧게 — 선이 아니라 날아가는 빛으로 보이도록
+              const tail = Math.max(0, ease - 0.16)
+              const tx = sx + (ex - sx) * tail
+              const ty = sy + (ey - sy) * tail
+              const tg = ctx.createLinearGradient(tx, ty, hx, hy)
+              tg.addColorStop(0, 'rgba(255,206,158,0)')
+              tg.addColorStop(1, `rgba(255,214,170,${(0.75 * (1 - e * 0.3)).toFixed(3)})`)
+              ctx.strokeStyle = tg
+              ctx.lineWidth = 1.6
+              ctx.lineCap = 'round'
+              ctx.beginPath()
+              ctx.moveTo(tx, ty)
+              ctx.lineTo(hx, hy)
+              ctx.stroke()
+              ctx.lineCap = 'butt'
+              ctx.fillStyle = 'rgba(255,236,214,0.95)'
+              ctx.beginPath()
+              ctx.arc(hx, hy, 2.2, 0, 6.283)
+              ctx.fill()
+            } else {
+              // 닿은 자리에서 한 번 번지고 사라짐
+              const f = (flight - 1) / 0.35
+              ctx.strokeStyle = `rgba(255,196,140,${(0.5 * (1 - f)).toFixed(3)})`
+              ctx.lineWidth = 1
+              ctx.beginPath()
+              ctx.arc(ex, ey, 4 + f * 16, 0, 6.283)
+              ctx.stroke()
+            }
+          }
         }
+      } else if (!p.cardOpen) {
+        // 카드를 닫았다가 다시 열면 빛이 한 번 더 건너가도록
+        scene.cardFor = null
       }
 
       // 온기 파문

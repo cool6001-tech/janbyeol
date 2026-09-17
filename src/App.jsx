@@ -7,13 +7,13 @@ import Welcome from './components/Welcome.jsx'
 import Toast from './components/Toast.jsx'
 import ConstellationPanel from './components/ConstellationPanel.jsx'
 import Tutorial from './components/Tutorial.jsx'
-import LetterSheet from './components/LetterSheet.jsx'
+import { ContactSheet } from './components/Contact.jsx'
 import { useJanbyeol } from './hooks/useJanbyeol.js'
 import { myConstellation, findKindred } from './lib/stats.js'
 import { buildGraph, buildOwnThreads, traceFrom, reachOf } from './lib/graph.js'
 import { distance, distanceToFit, cosmosDistance, FOCAL } from './lib/geometry.js'
 import { GALAXY_RADIUS } from './lib/galaxy.js'
-import { onboarding, letters } from './lib/storage.js'
+import { onboarding } from './lib/storage.js'
 
 /**
  * 하늘을 보는 두 가지 시점
@@ -116,7 +116,7 @@ export default function App() {
   const [tourOpen, setTourOpen] = useState(shouldTour) // 처음 온 사람에게만
   const [tourStep, setTourStep] = useState(null) // 안내가 지금 보여주는 장면
   const [tourInset, setTourInset] = useState(0) // 안내 카드가 아래를 가리는 높이
-  const [letterOpen, setLetterOpen] = useState(false) // 만든 사람에게 편지 쓰는 중
+  const [contactOpen, setContactOpen] = useState(false) // 만든 사람에게 — 메일 주소 카드
   const toastTimer = useRef(0)
   const cardAnchorRef = useRef(null)
   // 창 크기가 바뀌었을 때 "지금 무엇을 보고 있었는지"를 리스너에서 읽기 위한 것
@@ -321,7 +321,13 @@ export default function App() {
       const sides = narrow ? 32 : (withCard ? CARD_DOCK : 0) + (mineMode ? PANEL_DOCK : 0) + 48
       const usableW = w - sides
       const usableH = narrow ? h - inset - 90 : h - 150
-      const margin = Math.max(110, Math.min(usableW, usableH) * 0.45)
+      /* 좁은 화면 — 별무리를 **가로 폭을 기준으로** 넉넉히 펼칩니다.
+         예전에는 짧은 쪽(시트 위에 남은 높이)에 맞춰서 반경이 110px에 머물렀고,
+         곁으로 모인 별들이 붙어 있어 손가락으로 고르기 빠듯했어요.
+         궤도는 기울여 보고 있어 세로로는 약 0.78배로 납작하므로, 높이는 그만큼 더 너그럽게 봅니다. */
+      const margin = narrow
+        ? Math.max(120, Math.min(usableW * 0.46, (usableH * 0.5) / 0.78))
+        : Math.max(110, Math.min(usableW, usableH) * 0.42)
       return Math.max(340, Math.min(4600, distanceToFit(radius, margin)))
     },
     [bottomInset, mineMode]
@@ -391,6 +397,8 @@ export default function App() {
     },
     [stars, selectedId, graph, isNarrow, fitDistance, readMap]
   )
+
+  const closeContact = useCallback(() => setContactOpen(false), [])
 
   /** 카드를 닫아도 줌인·궤도·연결은 그대로 남는다 */
   const closeCard = useCallback(() => setCardOpen(false), [])
@@ -669,6 +677,7 @@ export default function App() {
           onToggleMine={toggleMine}
           onCosmos={backToCosmos}
           onHelp={openTour}
+          onMenuOpen={() => setWelcomeGone(true)} // 메뉴와 첫 문구가 겹치지 않게
         />
 
         {!welcomeGone && ready && !tourOpen && <Welcome gone={welcomeGone} layout={welcomeLayout} />}
@@ -695,6 +704,8 @@ export default function App() {
             onClose={closeCard}
           />
         )}
+        {/* 카드 가장자리에 남는 별빛 — 세로 위치는 Galaxy가 고른 별의 높이에 맞춰 줍니다 */}
+        {selected && <span className="cardnotch" aria-hidden="true" />}
       </div>
 
       {panelVisible && (
@@ -706,7 +717,7 @@ export default function App() {
           onClose={backToCosmos}
           onSelectStar={handleSelect}
           roadCount={readTrail.length}
-          onWriteLetter={letters.available ? () => setLetterOpen(true) : undefined}
+          onContact={() => setContactOpen(true)}
           onClearRoad={() => {
             clearRead()
             setReReading(null)
@@ -726,7 +737,7 @@ export default function App() {
 
       <Toast message={toast} />
 
-      {letterOpen && <LetterSheet narrow={isNarrow} onClose={() => setLetterOpen(false)} />}
+      {contactOpen && <ContactSheet onClose={closeContact} />}
 
       {tourOpen && ready && (
         <Tutorial
