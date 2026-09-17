@@ -317,7 +317,7 @@ ul {
   font-size: var(--fs-md);
   line-height: 1.9;
   min-height: 30px;
-  max-height: 110px;
+  max-height: 260px;
 }
 .composer textarea::placeholder {
   color: rgba(126, 138, 166, 0.75);
@@ -1577,6 +1577,256 @@ ul {
   color: rgba(255, 206, 158, 0.8);
 }
 
+/* ---------------- 만든 사람에게 보내는 편지 ----------------
+   나의 성단 맨 아래의 입구와, 그걸 누르면 열리는 편지지.
+   입구는 회고 카드들(.memory)과 같은 결로 — 광고처럼 튀지 않게. */
+.letterinvite {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin-top: 4px;
+  padding: 14px 14px;
+  text-align: left;
+  border: 1px dashed rgba(255, 176, 103, 0.28);
+  border-radius: 14px;
+  background: rgba(255, 176, 103, 0.035);
+  color: inherit;
+  cursor: pointer;
+  transition: border-color 0.25s, background 0.25s;
+}
+.letterinvite:hover {
+  border-color: rgba(255, 176, 103, 0.5);
+  background: rgba(255, 176, 103, 0.08);
+}
+/* 봉투 대신 — 멀리서 날아오는 작은 별 하나 */
+.letterinvite-mark {
+  position: relative;
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ffd2a6;
+  box-shadow: 0 0 12px rgba(255, 176, 103, 0.8);
+}
+.letterinvite-mark::after {
+  content: '';
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  width: 18px;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(255, 176, 103, 0), rgba(255, 176, 103, 0.6));
+}
+.letterinvite-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+  padding-left: 10px;
+}
+.letterinvite-text b {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: var(--fs-sm);
+  line-height: 1.7;
+  color: #e7ecfa;
+  word-break: keep-all;
+}
+.letterinvite-text small {
+  font-size: var(--fs-xs);
+  color: var(--mist);
+  word-break: keep-all;
+}
+.letterinvite-go {
+  flex: 0 0 auto;
+  font-size: var(--fs-xs);
+  letter-spacing: 0.1em;
+  color: #ffd2a6;
+  white-space: nowrap;
+}
+
+.letterveil {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+  background: rgba(3, 4, 9, 0.62);
+  backdrop-filter: blur(4px);
+  animation: tourIn 0.35s ease both;
+}
+.letter {
+  position: relative;
+  width: min(460px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(14, 19, 35, 0.96), rgba(7, 10, 20, 0.98));
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(180, 200, 255, 0.07);
+  padding: 22px 22px 16px;
+  animation: tourCard 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(150, 170, 215, 0.25) transparent;
+}
+.letter > .grip {
+  display: none;
+}
+.letterhead h2 {
+  margin-top: 10px;
+  font-family: var(--serif);
+  font-size: 19px;
+  font-weight: 400;
+  color: #eef2fc;
+}
+.letterhead p {
+  margin-top: 8px;
+  font-family: var(--serif);
+  font-size: var(--fs-sm);
+  line-height: 1.9;
+  color: #c3cce4;
+  word-break: keep-all;
+}
+.letterkinds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 16px;
+}
+.letterkind {
+  background: transparent;
+  font-family: var(--sans);
+  cursor: pointer;
+  padding: 6px 11px;
+  transition: border-color 0.2s, color 0.2s, background 0.2s;
+}
+.letterkind:hover {
+  border-color: var(--line-2);
+  color: var(--mist-hi);
+}
+.letterkind.on {
+  border-color: rgba(255, 176, 103, 0.45);
+  color: #ffd2a6;
+  background: rgba(255, 176, 103, 0.08);
+}
+.lettertext {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  min-height: 132px;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(4, 6, 13, 0.5);
+  color: var(--star);
+  font-family: var(--serif);
+  font-size: var(--fs-md);
+  line-height: 1.9;
+  padding: 12px 14px;
+  outline: none;
+}
+.lettertext:focus,
+.letteremail input:focus {
+  border-color: rgba(143, 179, 255, 0.4);
+}
+.lettertext::placeholder,
+.letteremail input::placeholder {
+  color: rgba(126, 138, 166, 0.7);
+}
+.letteremail {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 14px;
+}
+.letteremail > span {
+  font-size: var(--fs-xs);
+  letter-spacing: 0.08em;
+  color: var(--mist-hi);
+}
+.letteremail input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(4, 6, 13, 0.5);
+  color: var(--star);
+  font-family: var(--sans);
+  font-size: var(--fs-sm);
+  padding: 10px 12px;
+  outline: none;
+}
+.letteremail small {
+  font-size: var(--fs-xs);
+  color: var(--mist);
+}
+.letteremail small.warmhint {
+  color: #ffd2a6;
+}
+.letteremail small.warn {
+  color: #ff9d80;
+}
+.letterror {
+  margin-top: 12px;
+  font-size: var(--fs-xs);
+  line-height: 1.7;
+  color: #ff9d80;
+}
+.letterfoot {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+  margin-top: 16px;
+}
+.letterfoot .tour-primary:disabled {
+  opacity: 0.4;
+  cursor: default;
+  box-shadow: none;
+}
+.letterdone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 28px 8px 10px;
+}
+.letterstar {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ffe6ce;
+  box-shadow: 0 0 18px rgba(255, 176, 103, 0.9), 0 0 48px rgba(255, 140, 80, 0.4);
+  animation: tourBreathe 3.2s ease-in-out infinite;
+}
+.letterdone h2 {
+  margin-top: 22px;
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: 19px;
+  color: #eef2fc;
+}
+.letterdone p {
+  margin-top: 10px;
+  font-family: var(--serif);
+  font-size: var(--fs-sm);
+  line-height: 1.9;
+  color: #c3cce4;
+  word-break: keep-all;
+}
+.letterdone .tour-primary {
+  margin-top: 24px;
+}
+.letterdev {
+  margin-top: 12px;
+  font-size: var(--fs-xs);
+  line-height: 1.6;
+  color: var(--mist);
+  word-break: keep-all;
+}
+
 /* ---------------- 좁은 화면 ----------------
    예전에는 카드와 회고 패널이 화면 하단 52%를 덮고 입력창이 150px를 더 먹어서
    하늘이 위쪽 4분의 1만 남았습니다. 그래서 답답했어요.
@@ -1706,6 +1956,7 @@ ul {
     font-size: 15px;
     line-height: 1.6;
     min-height: 26px;
+    max-height: 180px;
   }
   .composer.compact.folded .crow,
   .composer.compact.folded .thumb {
@@ -1717,6 +1968,36 @@ ul {
   }
   .ui.liftbottom .bottom {
     padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* ----- 편지 = 바텀시트 ----- */
+  .letterveil {
+    place-items: end stretch;
+    padding: 0;
+  }
+  .letter {
+    width: 100%;
+    max-height: 92vh;
+    border-radius: 22px 22px 0 0;
+    border-bottom: 0;
+    padding: 8px 18px calc(14px + env(safe-area-inset-bottom, 0px));
+  }
+  .letter > .grip {
+    display: block;
+    width: 42px;
+    height: 4px;
+    margin: 4px auto 10px;
+    border-radius: 999px;
+    background: rgba(150, 170, 215, 0.34);
+  }
+  .letter .close {
+    top: 16px;
+  }
+  .lettertext {
+    font-size: 16px; /* 16px 미만이면 iOS가 입력할 때 화면을 확대해 버려요 */
+  }
+  .letteremail input {
+    font-size: 16px;
   }
 
   /* 아래는 시트가 차지하므로 알림은 위쪽으로 */
@@ -1793,6 +2074,11 @@ ul {
   .tour-hole,
   .tour-shade {
     transition-duration: 0.01ms;
+  }
+  .letterveil,
+  .letter,
+  .letterstar {
+    animation: none;
   }
   .tour,
   .tour-open,

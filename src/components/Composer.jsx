@@ -1,7 +1,10 @@
 import { useRef, useState } from 'react'
 
 /**
- * 잔별 띄우기 — 글 한 줄과 사진 한 장
+ * 잔별 띄우기 — 나의 이야기와 사진 한 장
+ *
+ * 한 줄만 써도 되고, 길게 써 내려가도 됩니다. 그래서 쓰기 시작하면
+ * 입력창이 넉넉히 자라요(넓은 화면 약 9줄, 좁은 화면 약 7줄). 그보다 길면 안에서 스크롤됩니다.
  *
  * 좁은 화면에서는 평소에 한 줄로 접혀 있다가, 쓰기 시작하면 펼쳐집니다.
  * 입력창이 늘 150px를 차지하면 정작 봐야 할 하늘이 그만큼 줄어드니까요.
@@ -17,7 +20,7 @@ export default function Composer({ onSubmit, onFocus, compact = false }) {
 
   const grow = (el) => {
     el.style.height = 'auto'
-    el.style.height = Math.min(compact ? 84 : 110, el.scrollHeight) + 'px'
+    el.style.height = Math.min(compact ? 180 : 260, el.scrollHeight) + 'px'
   }
 
   const pickFile = (e) => {

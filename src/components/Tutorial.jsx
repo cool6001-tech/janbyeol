@@ -23,8 +23,8 @@ const STEPS = [
     id: 'star',
     kind: 'sky',
     eyebrow: '잔별',
-    title: '별 하나는, 누군가의 하루예요',
-    body: '이 은하의 별은 모두 누군가 남긴 한 줄이에요. 한 사람의 별은 한자리에 모여 성단이 되고, 성단들이 모여 은하가 됩니다.',
+    title: '별 하나는, 누군가의 이야기예요',
+    body: '이 은하의 별은 모두 누군가 띄운 이야기예요. 한 사람의 별은 한자리에 모여 성단이 되고, 성단들이 모여 은하가 됩니다.',
     art: 'scale',
   },
   {
@@ -48,16 +48,26 @@ const STEPS = [
     kind: 'target',
     target: '.composer',
     eyebrow: '잔별 띄우기',
-    title: '당신의 오늘도 띄워보세요',
-    body: '거창하지 않아도 괜찮아요. 한 줄이면 충분하고, 사진도 한 장 담을 수 있어요. 띄우는 순간, 닮은 마음들이 곁으로 모여듭니다.',
+    title: '당신의 이야기도 띄워보세요',
+    body: '한 줄만이라도 충분하고, 마음에 남은 이야기를 길게 써 내려가도 좋아요. 사진도 한 장 담을 수 있어요. 띄우는 순간, 닮은 마음들이 곁으로 모여듭니다.',
   },
   {
+    // 이 장면 동안 실제로 '나의 성단' 시점이 켜집니다 (App이 전환)
     id: 'mine',
     kind: 'target',
-    target: '.segment',
+    target: '.segment .chip:nth-child(1)',
     eyebrow: '나의 성단',
-    title: '내 별들은 한자리에 모여요',
-    body: '‘나의 성단’에서는 내가 띄운 별만 밝아지고, 어떤 마음이 많았는지 조용히 돌아볼 수 있어요. ‘전체 은하’를 누르면 다시 모두의 하늘로 돌아와요.',
+    title: '내 이야기들은 한자리에 모여요',
+    body: '‘나의 성단’을 누르면 내가 띄운 별만 밝아지고, 어떤 마음이 많았는지 조용히 돌아볼 수 있어요.',
+  },
+  {
+    // 그리고 다시 '전체 은하'로
+    id: 'cosmos',
+    kind: 'target',
+    target: '.segment .chip:nth-child(2)',
+    eyebrow: '전체 은하',
+    title: '언제든, 모두의 하늘로',
+    body: '‘전체 은하’를 누르면 모든 사람의 별이 함께 떠 있는 하늘로 돌아와요. 오늘은 누가 어떤 이야기를 띄웠는지 천천히 둘러보세요.',
   },
   { id: 'finale', kind: 'open' },
 ]
@@ -196,7 +206,9 @@ export default function Tutorial({ narrow, reducedMotion, onStep, onInset, onFin
 
   const hole = useMemo(() => {
     if (!rect) return null
-    const radius = step.target === '.segment' ? (rect.height + PAD * 2) / 2 : 24
+    // 알약 모양 버튼은 알약 모양 그대로 짚습니다
+    const pill = /segment|chip/.test(step.target)
+    const radius = pill ? (rect.height + PAD * 2) / 2 : 24
     return {
       left: rect.left - PAD,
       top: rect.top - PAD,
@@ -260,7 +272,7 @@ export default function Tutorial({ narrow, reducedMotion, onStep, onInset, onFin
             우리는 모두 서로를 은은하게 비추는 잔별이니까요.
           </h2>
           <p>
-            잔별은 사소한 하루를 한 줄로 띄우고,
+            잔별은 사소한 하루와 마음에 남은 이야기를 띄우고,
             <br />
             닮은 마음끼리 서로를 비추는 작은 우주예요.
           </p>
@@ -282,14 +294,14 @@ export default function Tutorial({ narrow, reducedMotion, onStep, onInset, onFin
           <p>
             누군가의 별을 먼저 열어보거나,
             <br />
-            흘려보내기 아까웠던 순간을 한 줄로 남겨보세요.
+            단 한 줄만이라도, 당신의 별을 띄울 수 있어요.
           </p>
           <div className="tour-open-actions row">
             <button className="tour-secondary" onClick={() => close('read')}>
               별 하나 열어보기
             </button>
             <button ref={primaryRef} className="tour-primary" onClick={() => close('write')}>
-              오늘의 한 줄 쓰기
+              나의 이야기 쓰기
             </button>
           </div>
           <small className="tour-note">
@@ -403,7 +415,7 @@ function ArtScale() {
         </svg>
         <figcaption>
           <b>잔별</b>
-          <span>글 한 줄</span>
+          <span>나의 이야기</span>
         </figcaption>
       </figure>
       <figure>

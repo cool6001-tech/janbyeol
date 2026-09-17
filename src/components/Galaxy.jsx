@@ -786,7 +786,7 @@ export default function Galaxy({
        손가락 하나면 돌리고, 둘이면 벌려서 다가갑니다.
        예전에는 휠 이벤트만 있어서 휴대폰에서는 확대·축소가 아예 안 됐습니다. */
     const pointers = new Map()
-    const clampDist = (v) => Math.max(260, Math.min(9000, v))
+    const clampDist = (v) => Math.max(260, Math.min(14000, v)) // 좁은 화면의 전체 은하 거리(최대 14000)까지 물러날 수 있게
     let drag = null
     let moved = 0
     let pinch = null

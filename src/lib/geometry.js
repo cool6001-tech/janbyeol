@@ -64,11 +64,30 @@ export function distanceToFit(radius, margin, focal = FOCAL) {
  * 휴대폰에서는 은하가 화면 밖으로 넘쳐서, 새로 고치면 핵만 크게 보였어요.
  * 화면이 좁을수록 더 멀리 물러나야 같은 그림이 담깁니다.
  */
-export function cosmosDistance(radius, { width, height, narrow = width <= 860 } = {}) {
-  const usableW = width - (narrow ? 24 : 40)
-  const usableH = height - (narrow ? 142 : 120) // 상단바 · 입력창
+export function cosmosDistance(radius, { width, height, narrow = width <= 860, pitch = 0.92 } = {}) {
+  if (!narrow) {
+    const usableW = width - 40
+    const usableH = height - 120 // 상단바 · 입력창
+    const margin = Math.max(90, Math.min(usableW, usableH) / 2)
+    return Math.max(1200, Math.min(9000, distanceToFit(radius, margin)))
+  }
+
+  /*
+   * 좁은 화면 — 은하의 **가장자리 성단까지** 숨 쉴 틈을 두고 담습니다.
+   *
+   * 예전 계산은 은하를 납작한 원판으로 보고 반폭에 딱 맞췄어요. 그런데 기울여 보고
+   * 있으니 카메라 쪽 가장자리는 그만큼 가까워서 더 크게 투영되고(원근), 은하는 천천히
+   * 돌기까지 합니다. 그래서 휴대폰에서는 양 끝 성단이 화면 테두리에 닿거나 잘려서
+   * 하늘이 꽉 막혀 보였어요.
+   *
+   *   1. 가장 가까운 가장자리(radius·sin(pitch))만큼 더 물러나고
+   *   2. 양옆에 성단 반지름보다 넉넉한 여백(각 32px)을 둡니다.
+   */
+  const usableW = width - 64
+  const usableH = height - 180 // 상단바 · 접힌 입력창 · 안전 영역
   const margin = Math.max(90, Math.min(usableW, usableH) / 2)
-  return Math.max(1200, Math.min(9000, distanceToFit(radius, margin)))
+  const nearEdge = radius * Math.sin(pitch)
+  return Math.max(1200, Math.min(14000, distanceToFit(radius, margin) + nearEdge))
 }
 
 /**

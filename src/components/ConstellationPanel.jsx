@@ -16,6 +16,7 @@ export default function ConstellationPanel({
   onReset,
   roadCount = 0,
   onClearRoad,
+  onWriteLetter,
 }) {
   const { count, warmth, starlight, tagRanking, months, brightest, anniversaries } = data
   const maxTag = Math.max(1, ...tagRanking.map((t) => t.count))
@@ -86,7 +87,7 @@ export default function ConstellationPanel({
           <p className="empty">
             아직 띄운 잔별이 없어요.
             <br />
-            아래 입력창에 오늘의 한 줄을 남겨보세요.
+            아래 입력창에 나의 이야기를 남겨보세요. 한 줄만이라도 충분해요.
           </p>
         ) : (
           <>
@@ -202,6 +203,18 @@ export default function ConstellationPanel({
             하늘 비우기
           </button>
         </footer>
+
+        {/* 맨 아래 — 내 기록을 다 돌아본 뒤에야 닿는 자리. 조용히, 그러나 편지처럼. */}
+        {onWriteLetter && (
+          <button className="letterinvite" type="button" onClick={onWriteLetter}>
+            <span className="letterinvite-mark" aria-hidden="true" />
+            <span className="letterinvite-text">
+              <b>잔별을 만든 사람에게 전하고 싶은 이야기가 있나요?</b>
+              <small>바라는 점, 함께하고 싶은 일, 무엇이든 편하게</small>
+            </span>
+            <span className="letterinvite-go">편지 쓰기</span>
+          </button>
+        )}
       </div>
     </aside>
   )

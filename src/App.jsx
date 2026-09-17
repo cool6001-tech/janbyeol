@@ -7,12 +7,13 @@ import Welcome from './components/Welcome.jsx'
 import Toast from './components/Toast.jsx'
 import ConstellationPanel from './components/ConstellationPanel.jsx'
 import Tutorial from './components/Tutorial.jsx'
+import LetterSheet from './components/LetterSheet.jsx'
 import { useJanbyeol } from './hooks/useJanbyeol.js'
 import { myConstellation, findKindred } from './lib/stats.js'
 import { buildGraph, buildOwnThreads, traceFrom, reachOf } from './lib/graph.js'
 import { distance, distanceToFit, cosmosDistance, FOCAL } from './lib/geometry.js'
 import { GALAXY_RADIUS } from './lib/galaxy.js'
-import { onboarding } from './lib/storage.js'
+import { onboarding, letters } from './lib/storage.js'
 
 /**
  * 하늘을 보는 두 가지 시점
@@ -115,6 +116,7 @@ export default function App() {
   const [tourOpen, setTourOpen] = useState(shouldTour) // 처음 온 사람에게만
   const [tourStep, setTourStep] = useState(null) // 안내가 지금 보여주는 장면
   const [tourInset, setTourInset] = useState(0) // 안내 카드가 아래를 가리는 높이
+  const [letterOpen, setLetterOpen] = useState(false) // 만든 사람에게 편지 쓰는 중
   const toastTimer = useRef(0)
   const cardAnchorRef = useRef(null)
   // 창 크기가 바뀌었을 때 "지금 무엇을 보고 있었는지"를 리스너에서 읽기 위한 것
@@ -424,7 +426,7 @@ export default function App() {
     setCardOpen(false)
     const mine = constellation.mine
     if (mine.length === 0) {
-      say('아직 띄운 잔별이 없어요. 오늘의 한 줄을 남겨보세요.')
+      say('아직 띄운 잔별이 없어요. 한 줄만이라도 띄워보세요.')
       return
     }
     const sum = mine.reduce(
@@ -517,7 +519,8 @@ export default function App() {
    *   읽기   — 그 별을 골라(카드는 열지 않음) 더 가까이, 온기의 파문이 번지게
    *   이어진 빛 — 한 걸음 물러나, 곁으로 모여든 닮은 마음들과 이어진 선이 다 보이게
    *   띄우기 — 다시 은하 전체
-   *   나의 성단 — 내 별들이 모인 자리로 (시점을 바꾸지는 않음)
+   *   나의 성단 — 실제로 '나의 성단' 시점을 켜고, 내 별들이 모인 자리로
+   *   전체 은하 — 시점을 다시 끄고 은하 전체로
    * 저장된 좌표나 읽음 기록은 건드리지 않습니다.
    */
   useEffect(() => {
@@ -527,6 +530,12 @@ export default function App() {
 
     const showing = tourStep === 'open' || tourStep === 'bond'
     if (!showing) setSelectedId(null)
+
+    // '나의 성단' 장면에서만 실제로 그 시점을 켭니다 — 위의 버튼이 켜진 모습 그대로 보이게.
+    // 좁은 화면에서는 회고 시트를 접어 둔 채(손잡이만) 하늘을 보여줍니다.
+    const inMine = tourStep === 'mine'
+    setMineMode(inMine)
+    if (inMine) setPanelOpen(window.innerWidth > 860)
 
     if (tourStep === 'star' && demo) {
       setFocus({ pos: demo.pos, dist: fitDistance(520), pitch: 0.8, hold: HOLD, key: Date.now() })
@@ -598,7 +607,7 @@ export default function App() {
   }, [])
 
   /**
-   * 안내를 마치는 네 갈래 — skip(건너뛰기) · done · read(별 하나 열어보기) · write(한 줄 쓰기)
+   * 안내를 마치는 네 갈래 — skip(건너뛰기) · done · read(별 하나 열어보기) · write(나의 이야기 쓰기)
    * 어느 쪽이든 '봤다'고 기록합니다. 다시 보고 싶으면 오른쪽 위 ? 가 있으니까요.
    */
   const finishTour = useCallback(
@@ -610,6 +619,7 @@ export default function App() {
       setWelcomeGone(true)
       setSelectedId(null)
       setCardOpen(false)
+      setMineMode(false)
       if (action === 'read' && demoId) {
         handleSelect(demoId)
         return
@@ -696,6 +706,7 @@ export default function App() {
           onClose={backToCosmos}
           onSelectStar={handleSelect}
           roadCount={readTrail.length}
+          onWriteLetter={letters.available ? () => setLetterOpen(true) : undefined}
           onClearRoad={() => {
             clearRead()
             setReReading(null)
@@ -714,6 +725,8 @@ export default function App() {
       )}
 
       <Toast message={toast} />
+
+      {letterOpen && <LetterSheet narrow={isNarrow} onClose={() => setLetterOpen(false)} />}
 
       {tourOpen && ready && (
         <Tutorial
