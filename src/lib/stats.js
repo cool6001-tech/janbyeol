@@ -85,3 +85,24 @@ export function findKindred(stars, target, limit = 5) {
 
   return scored.slice(0, limit).map((s) => s.star)
 }
+
+/**
+ * 오늘 빛나는 별 — 전체 은하에서 사람들의 마음이 가장 많이 머문 이야기들
+ *
+ * 온기를 '언제' 받았는지는 아직 기록하지 않아서, 받은 온기와 이어진 별빛을
+ * **최근일수록 무겁게** 셉니다. 열흘 전 별은 오늘 별의 절반 무게예요.
+ * 서버에서 온기마다 시각을 남기게 되면 이 함수만 '오늘 받은 온기'로 바꾸면 됩니다.
+ */
+export function shiningStars(stars, limit = 1, now = Date.now()) {
+  const DAY = 86400000
+  return stars
+    .map((s) => {
+      const heart = (s.warmth || 0) + (s.replies?.length || 0) * 1.5
+      const ageDays = Math.max(0, (now - new Date(s.createdAt).getTime()) / DAY)
+      return { star: s, score: heart / (1 + ageDays / 10) }
+    })
+    .filter((x) => x.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+    .map((x) => x.star)
+}

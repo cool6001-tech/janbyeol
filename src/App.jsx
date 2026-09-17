@@ -9,7 +9,7 @@ import ConstellationPanel from './components/ConstellationPanel.jsx'
 import Tutorial from './components/Tutorial.jsx'
 import { ContactSheet } from './components/Contact.jsx'
 import { useJanbyeol } from './hooks/useJanbyeol.js'
-import { myConstellation, findKindred } from './lib/stats.js'
+import { myConstellation, findKindred, shiningStars } from './lib/stats.js'
 import { buildGraph, buildOwnThreads, traceFrom, reachOf } from './lib/graph.js'
 import { distance, distanceToFit, cosmosDistance, FOCAL } from './lib/geometry.js'
 import { GALAXY_RADIUS } from './lib/galaxy.js'
@@ -56,7 +56,7 @@ const ORBIT_R2 = 820 // 2겹 — 그 잔별이 닿은 잔별 (넓은 화면에�
 const ANCHOR_CLEAR = 240
 
 /** 넓은 화면에서 좌우를 가리는 것들의 너비 — 이만큼 하늘이 비켜섭니다 */
-const CARD_DOCK = 384 // 오른쪽 잔별 카드
+const CARD_DOCK = 412 // 오른쪽 잔별 카드 (글자를 키워 372px로 넓힘)
 const PANEL_DOCK = 372 // 왼쪽 나의 성단 패널
 
 /** 점수(0~10)를 궤도 반지름으로 */
@@ -131,6 +131,11 @@ export default function App() {
   )
 
   const selected = stars.find((s) => s.id === selectedId) || null
+
+  /* 오늘 빛나는 별 — 전체 은하에서만. 몇 번째 별을 보고 있는지 기억합니다 */
+  const shining = useMemo(() => shiningStars(stars, 1), [stars])
+  const brightest = shining[0] || null
+  const [shineOn, setShineOn] = useState(false) // 지금 열린 카드가 '오늘 가장 빛나는 별'로 연 것인가
   const constellation = useMemo(() => myConstellation(stars, me.id), [stars, me.id])
 
   /** 은하 전체가 담기는 거리 — 화면 크기에 따라 달라집니다 */
@@ -352,6 +357,7 @@ export default function App() {
   const handleSelect = useCallback(
     (id) => {
       setWelcomeGone(true)
+      setShineOn(false) // 직접 고른 별 — '빛나는 별' 표시는 칩·이름표로 열었을 때만
 
       if (!id) {
         setSelectedId(null)
@@ -426,6 +432,7 @@ export default function App() {
 
   /** 나의 성단으로 — 내 잔별들의 무게중심으로 카메라가 내려앉는다 */
   const enterMine = useCallback(() => {
+    setShineOn(false)
     setWelcomeGone(true)
     setMineMode(true)
     // 좁은 화면에서는 손잡이만 남기고 접어 둔다 — 먼저 보여야 할 건 하늘이니까
@@ -455,6 +462,7 @@ export default function App() {
 
   /** 전체 은하로 — 모두의 잔별이 다시 떠오르고 카메라가 제자리로 */
   const backToCosmos = useCallback(() => {
+    setShineOn(false)
     setSelectedId(null)
     setCardOpen(false)
     setMineMode(false)
@@ -637,6 +645,14 @@ export default function App() {
     [demoId, handleSelect, wholeView]
   )
 
+  /** 오늘 가장 빛나는 별 보기 — 딱 한 별 */
+  const showShining = useCallback(() => {
+    if (!brightest) return
+    handleSelect(brightest.id)
+    setShineOn(true) // handleSelect가 끈 뒤에 다시 켭니다
+  }, [brightest, handleSelect])
+
+
   // 좁은 화면에서는 카드와 회고 패널이 같은 자리를 쓰므로 한 번에 하나만 펼친다
   const panelVisible = mineMode && !(isNarrow && showCard)
 
@@ -665,6 +681,7 @@ export default function App() {
         readTrail={readTrail}
       />
 
+
       {/* 좁은 화면에서 시트가 올라오면 입력창은 자리를 비켜준다 */}
       <div
         className={`ui${isNarrow && (showCard || (mineMode && panelOpen)) ? ' cardup' : ''}${
@@ -679,6 +696,25 @@ export default function App() {
           onHelp={openTour}
           onMenuOpen={() => setWelcomeGone(true)} // 메뉴와 첫 문구가 겹치지 않게
         />
+
+        {/* 전체 은하에서만 — 사람들의 마음이 가장 많이 머문 이야기로 바로 */}
+        {ready && !mineMode && brightest && (
+          <button
+            className={`shinechip${shineOn && showCard ? ' on' : ''}`}
+            type="button"
+            onClick={() => {
+              setWelcomeGone(true)
+              showShining()
+            }}
+          >
+            <span className="shinechip-star" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="M12 2.5c.6 4.6 2.3 7.3 9.5 9.5-7.2 2.2-8.9 4.9-9.5 9.5-.6-4.6-2.3-7.3-9.5-9.5 7.2-2.2 8.9-4.9 9.5-9.5z" />
+              </svg>
+            </span>
+            오늘 가장 빛나는 별
+          </button>
+        )}
 
         {!welcomeGone && ready && !tourOpen && <Welcome gone={welcomeGone} layout={welcomeLayout} />}
 
@@ -699,6 +735,7 @@ export default function App() {
             reach={reach}
             open={showCard}
             readAt={reReading?.id === selected.id ? reReading.at : null}
+            shine={shineOn && brightest?.id === selected.id}
             onWarm={handleWarm}
             onReply={handleReply}
             onClose={closeCard}

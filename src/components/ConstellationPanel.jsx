@@ -1,5 +1,5 @@
 import { useRef } from 'react'
-import { monthLabel, relativeWhen, yearsAgo } from '../lib/time.js'
+import { relativeWhen, yearsAgo } from '../lib/time.js'
 import { subjectParticle } from '../lib/korean.js'
 
 /**
@@ -18,9 +18,8 @@ export default function ConstellationPanel({
   onClearRoad,
   onContact,
 }) {
-  const { count, warmth, starlight, tagRanking, months, brightest, anniversaries } = data
+  const { count, warmth, starlight, tagRanking, brightest, anniversaries } = data
   const maxTag = Math.max(1, ...tagRanking.map((t) => t.count))
-  const maxMonth = Math.max(1, ...months.map((m) => m.count))
   const topTag = tagRanking[0]
 
   /* 손잡이는 톡 눌러도, 위아래로 쓸어도 열리고 닫힙니다.
@@ -147,19 +146,6 @@ export default function ConstellationPanel({
                   </li>
                 ))}
               </ul>
-
-              <div className="strip" role="img" aria-label="최근 12개월 동안 띄운 잔별 수">
-                {months.map((m, i) => (
-                  <div className="col" key={m.key} title={`${monthLabel(m.key)} — 잔별 ${m.count}개`}>
-                    <span
-                      className="colfill"
-                      style={{ height: `${Math.max(2, (m.count / maxMonth) * 100)}%`, opacity: m.count ? 1 : 0.28 }}
-                    />
-                    <small>{i % 3 === 0 ? monthLabel(m.key) : ''}</small>
-                  </div>
-                ))}
-              </div>
-              <p className="axisnote">최근 12개월 · 한 칸이 한 달</p>
             </section>
 
             <section className="block">

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { photoOf, hasPhoto } from '../lib/photo.js'
 import { relativeWhen, readWhen, isAnniversary, yearsAgo } from '../lib/time.js'
+import { emotionOf, EMOTION_COLORS, cssColor } from '../lib/emotionColor.js'
 
 /**
  * 잔별 카드
@@ -12,6 +13,7 @@ export default function StarCard({
   reach,
   open = true,
   readAt,
+  shine,
   onWarm,
   onReply,
   onClose,
@@ -57,8 +59,18 @@ export default function StarCard({
 
       <div className={`cardhead${hasPhoto(star) ? ' haspic' : ''}`}>
         {photo && <div className="photo" style={{ backgroundImage: `url(${photo})` }} />}
+        {shine && (
+          <div className="shinebadge">
+            <span className="shinebadge-star" aria-hidden="true" />
+            <b>오늘 가장 빛나는 별</b>
+          </div>
+        )}
         <div className="meta">
-          <span className="dot" style={{ color: star.warmth > 6 ? '#FFB067' : '#8FB3FF' }} />
+          {/* 하늘에서 본 그 별의 색 그대로 — 어떤 마음의 이야기인지 */}
+          <span className="dot" style={{ color: cssColor(EMOTION_COLORS[emotionOf(star)]) }} />
+          <em className="emo" style={{ color: cssColor(EMOTION_COLORS[emotionOf(star)]) }}>
+            {emotionOf(star)}
+          </em>
           <em>
             {mine ? '나의 잔별 · ' : ''}
             {relativeWhen(star.createdAt)}
@@ -77,11 +89,8 @@ export default function StarCard({
         {anniversary && (
           <p className="anniversary">{yearsAgo(star.createdAt)}년 전 오늘, 당신은 여기 있었어요.</p>
         )}
-        {reach?.count > 0 && (
-          <p className="reach">
-            이 마음은 <b>{reach.people}명</b>의 잔별 {reach.count}개에 닿아 있어요.
-          </p>
-        )}
+        {/* '이 마음은 N명의 잔별 M개에 닿아 있어요'는 뺐습니다. 숫자가 둘이라 읽히지 않았고,
+            내 별에서는 아래 '별거 아니라 생각한 이 한 줄이, N명의 밤을 비췄어요' 한 줄이면 충분해요. */}
       </div>
 
       <div className="cardbody" ref={bodyRef}>

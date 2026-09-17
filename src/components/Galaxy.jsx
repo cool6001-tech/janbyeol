@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { project, orbitSlot, FOCAL } from '../lib/geometry.js'
+import { emotionRGB } from '../lib/emotionColor.js'
 import { buildAmbient, buildClouds, clusterSiteFor, CLUSTER_R } from '../lib/galaxy.js'
 import { ageFade, isAnniversary } from '../lib/time.js'
 import { hasPhoto } from '../lib/photo.js'
@@ -214,7 +215,8 @@ export default function Galaxy({
         rt = {
           phase: Math.random() * 6.283,
           speed: 0.6 + Math.random() * 0.9,
-          hue: (Math.random() - 0.5) * 26,
+          hue: (Math.random() - 0.5) * 10, // 같은 마음이라도 별마다 아주 조금씩 다르게
+          emo: emotionRGB(star), // 이 이야기가 품은 마음의 색
           size: 1.2 + Math.random() * 1.0,
           warm: 0,
           dim: 1, // 나의 성단 시점에서 남의 잔별이 저무는 정도
@@ -229,10 +231,22 @@ export default function Galaxy({
       return rt
     }
 
+    /**
+     * 온기 → 별의 밝기 · 크기 · 색
+     *
+     * 예전에는 온기 14에서 끝까지 차 버려서, 그 뒤로는 50명이 더해도 별이 그대로였어요.
+     * 게다가 멀리서 보면 별 크기에 상한(4.4px)이 있어서 커지는 게 거의 보이지 않았습니다.
+     *
+     * 이제는 **로그 곡선**으로 오래 자랍니다. 처음 몇 명이 더한 온기는 또렷이 보이고,
+     * 그 뒤로는 천천히, 그러나 멈추지 않고 밝아져요 (1명 0.17 · 5명 0.44 · 20명 0.74 · 60명 1).
+     * 내가 더한 온기는 조금만 더합니다 — 별이 '많은 사람의 온기'를 말하도록.
+     */
+    const WARMTH_FULL = 60
     const warmTarget = (star, iWarmed) => {
-      const base = Math.min(1, (star.warmth || 0) / 14)
-      const fromReplies = Math.min(0.3, (star.replies?.length || 0) * 0.07)
-      return Math.min(1, base + fromReplies + (iWarmed ? 0.35 : 0))
+      const n = Math.max(0, star.warmth || 0)
+      const base = Math.log2(1 + n) / Math.log2(1 + WARMTH_FULL)
+      const fromReplies = Math.min(0.15, (star.replies?.length || 0) * 0.04)
+      return Math.min(1, base + fromReplies + (iWarmed ? 0.06 : 0))
     }
 
     /**
@@ -244,13 +258,48 @@ export default function Galaxy({
     const WARM = [255, 176, 103]
     const channel = (v) => Math.max(0, Math.min(255, Math.round(v)))
 
+    /* 번짐 그림 미리 그려 두기
+       별마다 매 프레임 원형 그라데이션을 새로 만들면 별이 수천 개일 때 그것만으로 느려집니다.
+       색을 8단계로 뭉쳐 64px짜리 번짐을 한 번만 그려 두고, 크기와 투명도만 바꿔 찍습니다.
+       (색 조합은 많아야 수백 가지라 금방 다 채워지고, 그다음부터는 새로 그리지 않아요) */
+    const SITE_MINE = [255, 206, 158]
+    const SITE_OTHER = [178, 200, 246]
+    const haloSprites = new Map()
+    const haloSprite = (c) => {
+      const q = (v) => Math.max(0, Math.min(255, Math.round(v / 8) * 8))
+      const r = q(c[0])
+      const g = q(c[1])
+      const b = q(c[2])
+      const key = (r << 16) | (g << 8) | b
+      let sprite = haloSprites.get(key)
+      if (!sprite) {
+        const S = 64
+        sprite = document.createElement('canvas')
+        sprite.width = S
+        sprite.height = S
+        const sc = sprite.getContext('2d')
+        const grd = sc.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2)
+        grd.addColorStop(0, `rgba(${r},${g},${b},1)`)
+        grd.addColorStop(0.35, `rgba(${Math.round(r * 0.75)},${Math.round(g * 0.75)},${Math.round(b * 0.85)},0.324)`)
+        grd.addColorStop(1, 'rgba(40,50,90,0)')
+        sc.fillStyle = grd
+        sc.fillRect(0, 0, S, S)
+        haloSprites.set(key, sprite)
+      }
+      return sprite
+    }
+
+    /* 별의 색 = 마음의 색. 온기는 따뜻한 기운을 조금만(최대 30%) 더합니다 —
+       색이 온기에 다 덮이면 어떤 마음의 이야기인지가 사라지니까요. */
+    const tint = (rt, amount = 0.3) => {
+      const w = rt.warm * amount
+      const e = rt.emo || COOL
+      return [e[0] + (WARM[0] - e[0]) * w, e[1] + (WARM[1] - e[1]) * w, e[2] + (WARM[2] - e[2]) * w]
+    }
     const starColor = (rt, bright) => {
-      const w = rt.warm
       const k = 0.45 + 0.55 * Math.min(1.25, bright)
-      const r = (COOL[0] + (WARM[0] - COOL[0]) * w) * k - rt.hue * 0.6
-      const g = (COOL[1] + (WARM[1] - COOL[1]) * w) * k
-      const b = (COOL[2] + (WARM[2] - COOL[2]) * w) * k + rt.hue * 0.6
-      return `rgb(${channel(r)},${channel(g)},${channel(b)})`
+      const [r, g, b] = tint(rt)
+      return `rgb(${channel(r * k - rt.hue * 0.6)},${channel(g * k)},${channel(b * k + rt.hue * 0.6)})`
     }
 
     const linkColor = (warm, alpha) => {
@@ -294,6 +343,8 @@ export default function Galaxy({
       // 나의 성단 시점에서는 은하 전체가 한 걸음 물러난다.
       // 완전히 끄지는 않습니다 — 내 잔별이 은하 어디쯤에 있는지는 보여야 하니까요.
       const traced = p.trace ? p.trace.depthOf : null
+      /* 붐빔 보정 — 별이 많아질수록 한 별의 번짐과 선을 옅게. 합쳐진 빛의 총량이 늘 비슷하게 유지됩니다 */
+      const crowd = Math.max(1, Math.sqrt(p.stars.length / 180))
       const traceElapsed = now - (scene.traceStart || now)
       const ambientTarget = traced ? 0.4 : p.mineMode ? 0.45 : 1
       scene.ambientDim += (ambientTarget - scene.ambientDim) * 0.06
@@ -450,10 +501,22 @@ export default function Galaxy({
       /* 연결선 두 겹.
          뒤 — 공감의 그물: 다른 사람의 잔별에 닿는 선. 늘 희미하게 깔려 있다.
          앞 — 이야기의 줄기: 같은 사람의 잔별을 시간 순으로 이은 실. 내 것은 또렷하게. */
+      /* 선이 아주 많을 때(별 수백 개 이상)는 선마다 그라데이션을 만들지 않고,
+         비슷한 색·밝기끼리 묶어 한 번에 긋습니다. 모습은 거의 같고 훨씬 가벼워요. */
+      const manyLinks = p.links.length > 600
+      const linkBatches = manyLinks ? new Map() : null
       for (const link of p.links) {
         const A = byId.get(link.a)
         const B = byId.get(link.b)
         if (!A?.pr || !B?.pr) continue
+        // 두 끝이 모두 화면 밖 같은 쪽에 있으면 그을 필요가 없습니다
+        if (
+          (A.pr.sx < 0 && B.pr.sx < 0) ||
+          (A.pr.sx > width && B.pr.sx > width) ||
+          (A.pr.sy < 0 && B.pr.sy < 0) ||
+          (A.pr.sy > height && B.pr.sy > height)
+        )
+          continue
         const isOwn = link.kind === 'own'
         const isMineThread = isOwn && link.authorId === p.myId
         const warmAvg = (A.rt.warm + B.rt.warm) / 2
@@ -482,7 +545,18 @@ export default function Galaxy({
           const len = Math.hypot(B.pr.sx - A.pr.sx, B.pr.sy - A.pr.sy)
           if (len > span * 0.45) alpha *= Math.max(0.3, 1 - (len - span * 0.45) / span)
         }
+        if (!link.cluster && !(p.selectedId === link.a || p.selectedId === link.b)) alpha /= crowd * crowd
         if (alpha < 0.004) continue
+
+        if (manyLinks) {
+          const wq = Math.round((isMineThread ? Math.max(0.5, warmAvg) : warmAvg) * 4)
+          const aq = Math.min(40, Math.round(alpha * 100))
+          const key = wq * 1000 + aq * 2 + (isMineThread ? 1 : 0)
+          let batch = linkBatches.get(key)
+          if (!batch) linkBatches.set(key, (batch = { wq, aq, mine: isMineThread, pts: [] }))
+          batch.pts.push(A.pr.sx, A.pr.sy, B.pr.sx, B.pr.sy)
+          continue
+        }
 
         const grd = ctx.createLinearGradient(A.pr.sx, A.pr.sy, B.pr.sx, B.pr.sy)
         grd.addColorStop(0, linkColor(isMineThread ? Math.max(0.5, A.rt.warm) : A.rt.warm, alpha))
@@ -493,6 +567,19 @@ export default function Galaxy({
         ctx.moveTo(A.pr.sx, A.pr.sy)
         ctx.lineTo(B.pr.sx, B.pr.sy)
         ctx.stroke()
+      }
+      if (linkBatches) {
+        for (const batch of linkBatches.values()) {
+          ctx.strokeStyle = linkColor(batch.wq / 4, batch.aq / 100)
+          ctx.lineWidth = batch.mine ? 1.1 : 0.8
+          ctx.beginPath()
+          const q = batch.pts
+          for (let i = 0; i < q.length; i += 4) {
+            ctx.moveTo(q[i], q[i + 1])
+            ctx.lineTo(q[i + 2], q[i + 3])
+          }
+          ctx.stroke()
+        }
       }
 
       /* 별길 — 내가 읽어나간 순서대로 이어진 세 번째 선.
@@ -629,15 +716,11 @@ export default function Galaxy({
         if (rad < 4) continue
         if (pr.sx < -rad || pr.sx > width + rad || pr.sy < -rad || pr.sy > height + rad) continue
         const isMine = authorId === p.myId
-        const alpha = (isMine ? 0.12 : 0.06) * (p.mineMode && !isMine ? 0.25 : 1)
-        const cgr = ctx.createRadialGradient(pr.sx, pr.sy, 0, pr.sx, pr.sy, rad)
-        cgr.addColorStop(0, isMine ? `rgba(255,206,158,${alpha})` : `rgba(178,200,246,${alpha})`)
-        cgr.addColorStop(0.5, isMine ? `rgba(226,180,150,${alpha * 0.35})` : `rgba(150,175,230,${alpha * 0.35})`)
-        cgr.addColorStop(1, 'rgba(90,110,170,0)')
-        ctx.fillStyle = cgr
-        ctx.beginPath()
-        ctx.arc(pr.sx, pr.sy, rad, 0, 6.283)
-        ctx.fill()
+        const alpha = ((isMine ? 0.12 : 0.06) * (p.mineMode && !isMine ? 0.25 : 1)) / crowd
+        // 별과 같은 미리 그린 번짐으로 (성단이 수백 개여도 가볍게)
+        ctx.globalAlpha = Math.min(1, alpha)
+        ctx.drawImage(haloSprite(isMine ? SITE_MINE : SITE_OTHER), pr.sx - rad, pr.sy - rad, rad * 2, rad * 2)
+        ctx.globalAlpha = 1
       }
 
       // 별 — 먼 것부터
@@ -659,33 +742,40 @@ export default function Galaxy({
         const selected = star.id === p.selectedId
 
         const bright =
-          twinkle * photoTwinkle * born * fade * rt.dim * (0.78 + 0.34 * rt.warm) *
+          twinkle * photoTwinkle * born * fade * rt.dim * (0.72 + 0.56 * rt.warm) *
           (selected ? 1.3 : 1) * (anniversary ? 1.25 : 1)
 
         /* 크기의 상한.
            모든 별을 4.4px로 눌러두면 아무리 다가가도 별이 커지지 않습니다.
            고른 별과 곁으로 끌려온 별에만 상한을 풀어, 줌인이 눈에 보이게 합니다. */
         const inOrbit = slots.has(star.id)
-        const cap = selected ? 11 : inOrbit ? 7 : 4.4
+        // 온기가 쌓인 별은 상한도 함께 늘어납니다 — 멀리서 봐도 커지는 게 보이도록 (최대 1.7배)
+        const cap = (selected ? 11 : inOrbit ? 7 : 4.4) * (1 + 0.7 * rt.warm)
 
-        let rad = rt.size * Math.max(0.4, pr.k * 22) * (0.92 + 0.4 * rt.warm) * born
+        let rad = rt.size * Math.max(0.4, pr.k * 22) * (0.88 + 0.6 * rt.warm) * born
         rad *= selected ? 1.45 : 1
         rad *= 0.6 + 0.4 * fade
         rad *= 0.55 + 0.45 * rt.dim
         rad = Math.max(0.9, Math.min(rad, cap))
+        const quiet = !selected && !inOrbit ? crowd : 1
+        rad = Math.max(0.8, rad / Math.pow(quiet, 0.35))
         rt.lastRad = rad // 별길의 매듭이 이 크기에 맞춰 둘러집니다
 
         // 헤일로
-        const halo = rad * (hasPhoto(star) ? 11 : 8) * (0.8 + 0.5 * rt.warm)
+        const halo = rad * (hasPhoto(star) ? 11 : 8) * (0.75 + 0.75 * rt.warm)
         const mix = rt.warm
-        const g = ctx.createRadialGradient(pr.sx, pr.sy, 0, pr.sx, pr.sy, halo)
-        g.addColorStop(0, `rgba(${Math.round(180 + 70 * mix)},${Math.round(200 - 40 * mix)},${Math.round(255 - 110 * mix)},${(0.34 * bright).toFixed(3)})`)
-        g.addColorStop(0.35, `rgba(${Math.round(120 + 110 * mix)},${Math.round(150 - 20 * mix)},${Math.round(240 - 90 * mix)},${(0.1 * bright).toFixed(3)})`)
-        g.addColorStop(1, 'rgba(60,80,160,0)')
-        ctx.fillStyle = g
-        ctx.beginPath()
-        ctx.arc(pr.sx, pr.sy, halo, 0, 6.283)
-        ctx.fill()
+
+        // 화면 밖의 별은 그리지 않습니다 (위치 계산과 카드 자리 잡기는 위에서 이미 끝났어요)
+        const reach = Math.max(halo, rad + 60)
+        if (pr.sx < -reach || pr.sx > width + reach || pr.sy < -reach || pr.sy > height + reach) continue
+
+        // 번짐도 마음의 색으로 — 온기가 쌓일수록 가장자리에 따뜻한 기운이 조금 더 번집니다
+        const haloAlpha = Math.min(1, (0.34 * bright) / quiet)
+        if (haloAlpha > 0.004 && halo > 0.5) {
+          ctx.globalAlpha = haloAlpha
+          ctx.drawImage(haloSprite(tint(rt, 0.45)), pr.sx - halo, pr.sy - halo, halo * 2, halo * 2)
+          ctx.globalAlpha = 1
+        }
 
         // 사진을 품은 잔별 — 우주 뷰에서 이미지는 보이지 않고 오라만 다르다
         if (hasPhoto(star)) {
@@ -707,10 +797,25 @@ export default function Galaxy({
         }
 
         // 핵
-        ctx.fillStyle = starColor(rt, Math.min(1.15, bright))
-        ctx.beginPath()
-        ctx.arc(pr.sx, pr.sy, rad, 0, 6.283)
-        ctx.fill()
+        if (crowd > 1.5 && rad < 1.8 && quiet > 1 && !hasPhoto(star)) {
+          // 별이 아주 많을 때의 작은 별 — 원 대신 작은 네모로, 색 문자열도 온기가 변할 때만 새로 만듭니다
+          const wq = Math.round(rt.warm * 20)
+          if (rt.coreWq !== wq) {
+            rt.coreWq = wq
+            const [r, g, b] = tint(rt)
+            rt.coreCss = `rgb(${channel(r - rt.hue * 0.6)},${channel(g)},${channel(b + rt.hue * 0.6)})`
+          }
+          ctx.globalAlpha = Math.min(1, 0.45 + 0.55 * Math.min(1.25, bright))
+          ctx.fillStyle = rt.coreCss
+          const side = rad * 1.77 // 원과 같은 넓이의 네모
+          ctx.fillRect(pr.sx - side / 2, pr.sy - side / 2, side, side)
+          ctx.globalAlpha = 1
+        } else {
+          ctx.fillStyle = starColor(rt, Math.min(1.15, bright))
+          ctx.beginPath()
+          ctx.arc(pr.sx, pr.sy, rad, 0, 6.283)
+          ctx.fill()
+        }
 
         // 작년 오늘의 별 — 느리게 숨 쉬는 고리
         if (anniversary) {

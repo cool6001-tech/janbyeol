@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { EMOTION_COLORS, EMOTION_ORDER, cssColor } from '../lib/emotionColor.js'
 
 /**
  * 처음 온 사람을 위한 안내
@@ -322,7 +323,12 @@ export default function Tutorial({ narrow, reducedMotion, onStep, onInset, onFin
           <div className="tour-cardbody">
             <h3 id={`tour-title-${step.id}`}>{step.title}</h3>
             <p>{step.body}</p>
-            {step.art === 'scale' && <ArtScale />}
+            {step.art === 'scale' && (
+              <>
+                <ArtScale />
+                <EmotionLegend />
+              </>
+            )}
             {step.art === 'actions' && <ArtActions />}
             {step.art === 'bond' && <ArtBond still={reducedMotion} />}
           </div>
@@ -455,6 +461,23 @@ function ArtScale() {
   )
 }
 
+/** 별의 색은 이야기의 마음 — 한 줄짜리 작은 범례 */
+function EmotionLegend() {
+  return (
+    <div className="tour-emolegend" aria-label="별의 색은 이야기의 마음이에요">
+      <span className="tour-emolegend-lede">별의 색은 이야기의 마음이에요</span>
+      <ul>
+        {EMOTION_ORDER.map((k) => (
+          <li key={k}>
+            <i style={{ background: cssColor(EMOTION_COLORS[k]), boxShadow: `0 0 8px ${cssColor(EMOTION_COLORS[k], 0.8)}` }} />
+            {k}
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 /** 카드 안에서 실제로 누르게 될 두 가지 — 같은 모양 그대로 */
 function ArtActions() {
   return (
@@ -470,7 +493,14 @@ function ArtActions() {
       </div>
       <div className="tour-demo-row">
         <span className="tour-faux-reply">
-          별빛 이어가기<em> — 다정한 한 줄</em>
+          <span className="replyspark" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="M12 2.5c.6 4.6 2.3 7.3 9.5 9.5-7.2 2.2-8.9 4.9-9.5 9.5-.6-4.6-2.3-7.3-9.5-9.5 7.2-2.2 8.9-4.9 9.5-9.5z" />
+            </svg>
+          </span>
+          <span>
+            별빛 이어가기<em> — 다정한 한 줄</em>
+          </span>
         </span>
         <small>짧은 답글</small>
       </div>
