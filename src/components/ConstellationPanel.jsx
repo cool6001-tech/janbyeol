@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import { relativeWhen, yearsAgo } from '../lib/time.js'
 import { subjectParticle } from '../lib/korean.js'
+import Account, { AccountFooter } from './Account.jsx'
 
 /**
  * 나의 성단 — 저장된 기록이 회고가 되는 화면
@@ -17,6 +18,8 @@ export default function ConstellationPanel({
   roadCount = 0,
   onClearRoad,
   onContact,
+  me,
+  onNotice,
 }) {
   const { count, warmth, starlight, tagRanking, brightest, anniversaries } = data
   const maxTag = Math.max(1, ...tagRanking.map((t) => t.count))
@@ -164,6 +167,8 @@ export default function ConstellationPanel({
           </>
         )}
 
+        {me && <Account me={me} onNotice={onNotice} />}
+
         {roadCount > 0 && (
           <footer className="panelfoot">
             <p>
@@ -180,13 +185,13 @@ export default function ConstellationPanel({
         )}
 
         <footer className="panelfoot">
-          <p>처음 오셨다면 예시 기록 몇 개가 함께 떠 있어요.</p>
+          <p>내가 띄운 잔별만 거둡니다. 다른 사람의 별은 하늘에 그대로 남아요.</p>
           <button
             onClick={() => {
-              if (window.confirm('하늘을 처음 상태로 되돌릴까요? 띄운 잔별이 모두 사라집니다.')) onReset()
+              if (window.confirm('내가 띄운 잔별을 모두 거둘까요? 되돌릴 수 없습니다.')) onReset()
             }}
           >
-            하늘 비우기
+            내 잔별 거두기
           </button>
         </footer>
 
@@ -201,6 +206,8 @@ export default function ConstellationPanel({
             <span className="contactinvite-go">메일 주소 보기</span>
           </button>
         )}
+
+        {me && <AccountFooter onNotice={onNotice} />}
       </div>
     </aside>
   )

@@ -6,14 +6,20 @@
   "description": "잔별 — 사소한 하루가 별이 되어 떠오르는 3D 감성 소셜 아카이빙",
   "scripts": {
     "dev": "vite",
+    "dev:phone": "vite --host",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "brand": "python3 scripts/make-brand-images.py",
+    "card": "node scripts/lib/card.mjs",
+    "ig:dry": "DRY_RUN=1 node scripts/daily-instagram.mjs"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.117.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@napi-rs/canvas": "^0.1.60",
     "@vitejs/plugin-react": "^4.3.1",
     "vite": "^5.4.8"
   }

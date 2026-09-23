@@ -2,5 +2,16 @@ node_modules
 dist
 .DS_Store
 *.local
+
+# 환경변수 — 절대 올리지 않습니다
 .env
 .env.*
+!.env.example
+
+# 확인용 · 작업 중 생긴 것들
+out/
+check.mjs
+smoke.mjs
+shot.mjs
+.vercel
+Claude outputs/

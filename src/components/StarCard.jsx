@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { photoOf, hasPhoto } from '../lib/photo.js'
 import { relativeWhen, readWhen, isAnniversary, yearsAgo } from '../lib/time.js'
 import { emotionOf, EMOTION_COLORS, cssColor } from '../lib/emotionColor.js'
+import StarGuard from './StarGuard.jsx'
 
 /**
  * 잔별 카드
@@ -16,6 +17,10 @@ export default function StarCard({
   shine,
   onWarm,
   onReply,
+  onReport,
+  onBlock,
+  onNotice,
+  onAllowFeature,
   onClose,
 }) {
   const [draft, setDraft] = useState('')
@@ -50,12 +55,36 @@ export default function StarCard({
     setDraft('')
   }
 
+  /**
+   * 이 별 하나를 보냅니다.
+   * 링크는 /s/<id> — 서버가 이 글이 담긴 미리보기를 붙여 보내주는 주소입니다.
+   * 카카오톡에서 글 한 줄이 그대로 보이는 건 그 덕분이에요.
+   */
+  const share = async () => {
+    const url = `${window.location.origin}/s/${star.id}`
+    const text = star.text.length > 40 ? `${star.text.slice(0, 40)}…` : star.text
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: '잔별', text, url })
+        return
+      }
+      await navigator.clipboard.writeText(url)
+      onNotice?.('주소를 복사했어요. 어디든 붙여넣어 보내세요.')
+    } catch {
+      /* 사용자가 공유창을 닫은 것 — 알릴 일이 아닙니다 */
+    }
+  }
+
   return (
     <section className={`card${open ? ' open' : ''}`} aria-live="polite">
       <span className="grip" aria-hidden="true" />
       <button className="close" onClick={onClose} aria-label="닫기">
         ×
       </button>
+      {/* 남의 별에만 — 내 글을 내가 신고할 일은 없으니까요 */}
+      {!mine && onReport && (
+        <StarGuard star={star} onReport={onReport} onBlock={onBlock} onDone={onNotice} />
+      )}
 
       <div className={`cardhead${hasPhoto(star) ? ' haspic' : ''}`}>
         {photo && <div className="photo" style={{ backgroundImage: `url(${photo})` }} />}
@@ -102,12 +131,38 @@ export default function StarCard({
             온기 더하기
           </button>
           <span className="count">온기 {star.warmth || 0}</span>
+          <button className="sharebtn" onClick={share} aria-label="이 잔별 보내기">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 15V4m0 0L8.5 7.5M12 4l3.5 3.5" />
+              <path d="M5 13v5.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V13" />
+            </svg>
+            보내기
+          </button>
         </div>
 
         {mine && star.warmth > 0 && (
           <p className="glowline">
             별거 아니라 생각한 이 한 줄이, <b>{star.warmth}명</b>의 밤을 비췄어요.
           </p>
+        )}
+
+        {/* 내 잔별에만 — 소개 허락은 언제든 거둘 수 있어야 합니다 */}
+        {mine && onAllowFeature && (
+          <label className="featuretoggle">
+            <input
+              type="checkbox"
+              checked={star.allowFeature === true}
+              onChange={(e) => {
+                onAllowFeature(star.id, e.target.checked)
+                onNotice?.(
+                  e.target.checked
+                    ? '이 잔별은 공식 계정에 소개될 수 있어요'
+                    : '소개 허락을 거뒀어요'
+                )
+              }}
+            />
+            <span>잔별 공식 계정에 소개되어도 좋아요</span>
+          </label>
         )}
 
         <div className="threads">

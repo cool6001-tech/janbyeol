@@ -1,0 +1,53 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "framework": "vite",
+  "functions": {
+    "api/card/[id].js": {
+      "memory": 1024,
+      "maxDuration": 15,
+      "includeFiles": "assets/fonts/**"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/s/:id",
+      "destination": "/api/s/:id"
+    },
+    {
+      "source": "/((?!api/|terms|privacy).*)",
+      "destination": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/og-image.png",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=86400"
+        }
+      ]
+    },
+    {
+      "source": "/(icon-192|icon-512|apple-touch-icon|favicon).png",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=604800"
+        }
+      ]
+    },
+    {
+      "source": "/manifest.webmanifest",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/manifest+json"
+        }
+      ]
+    }
+  ],
+  "cleanUrls": true
+}

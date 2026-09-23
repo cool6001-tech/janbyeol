@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>개인정보처리방침 — 잔별</title>
+    <meta name="description" content="잔별 개인정보처리방침" />
+    <meta name="robots" content="index, follow" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Noto+Sans+KR:wght@300;400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --void: #04050a;
+        --stardust: #e2d6ff;
+        --star: #dde5f7;
+        --mist: #7e8aa6;
+        --mist-hi: #aeb8d2;
+        --line: rgba(150, 170, 215, 0.14);
+        --ember: #ff7d54;
+        --serif: 'Gowun Batang', 'Nanum Myeongjo', Georgia, serif;
+        --sans: 'Noto Sans KR', system-ui, -apple-system, sans-serif;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; background: var(--void); color: var(--mist-hi);
+        font-family: var(--sans); font-weight: 300; line-height: 1.95;
+        font-size: 15px; -webkit-font-smoothing: antialiased;
+      }
+      .wrap { max-width: 720px; margin: 0 auto; padding: 56px 20px 120px; }
+      a { color: var(--stardust); text-underline-offset: 3px; }
+      header { border-bottom: 1px solid var(--line); padding-bottom: 28px; margin-bottom: 40px; }
+      .home { display: inline-block; margin-bottom: 26px; font-size: 13px; color: var(--mist); text-decoration: none; }
+      .home:hover { color: var(--stardust); }
+      h1 { font-family: var(--serif); font-weight: 400; font-size: 28px; margin: 0 0 10px; color: var(--stardust); }
+      .sub { margin: 0; font-size: 13px; color: var(--mist); }
+      h2 { font-family: var(--serif); font-weight: 400; font-size: 19px; color: var(--star); margin: 44px 0 12px; }
+      h3 { font-size: 14.5px; font-weight: 500; color: var(--mist-hi); margin: 22px 0 6px; }
+      p, li { font-size: 14.5px; }
+      ol, ul { padding-left: 22px; }
+      li { margin: 5px 0; }
+      .draft {
+        border: 1px solid rgba(255, 125, 84, 0.4); background: rgba(255, 125, 84, 0.07);
+        border-radius: 12px; padding: 16px 20px; margin-bottom: 36px;
+        font-size: 13.5px; color: #ffbfa8; line-height: 1.85;
+      }
+      .draft b { color: var(--ember); }
+      .check { color: var(--ember); font-size: 12.5px; }
+      .note { border-left: 2px solid var(--line); padding-left: 16px; margin: 16px 0; color: var(--mist); font-size: 13.5px; }
+      table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 13.5px; }
+      th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+      th { color: var(--star); font-weight: 500; }
+      thead th { border-bottom-color: rgba(150, 170, 215, 0.3); }
+      footer { margin-top: 64px; padding-top: 24px; border-top: 1px solid var(--line); font-size: 13px; color: var(--mist); }
+      @media (max-width: 600px) {
+        .wrap { padding: 36px 18px 100px; }
+        h1 { font-size: 24px; }
+        table, th, td { font-size: 12.5px; }
+        th, td { padding: 7px 6px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <a class="home" href="/">← 잔별로 돌아가기</a>
+
+      <header>
+        <h1>개인정보처리방침</h1>
+        <p class="sub">시행일 2026년 10월 1일</p>
+      </header>
+
+      <!-- 운영 메모 (화면에 보이지 않습니다)
+           · 이 문서는 변호사가 검토한 것이 아닙니다. 공개 범위를 넓히기 전에 검토를 받으세요.
+           · 개인정보 보호법이 2026-09-11 개정 시행되었습니다. 추가된 기재사항이 있는지 확인이 필요합니다.
+           · 제5·6조는 Supabase 프로젝트가 서울(ap-northeast-2) 리전이라는 전제로 쓰였습니다.
+             다른 리전이라면 반드시 고쳐야 합니다. -->
+
+      <p>
+        잔별(이하 "서비스")은 이용자의 개인정보를 소중히 다루며, 「개인정보 보호법」을 비롯한
+        관련 법령을 지킵니다. 이 방침은 어떤 정보를 왜 처리하고 얼마나 보관하는지를 밝힙니다.
+      </p>
+
+      <p class="note">
+        잔별은 처음부터 <b>가능한 한 적게 아는 쪽</b>으로 만들었습니다. 로그인을 요구하지 않고,
+        이름·생년월일·연락처를 묻지 않으며, 어느 잔별을 읽었는지는 서버로 보내지 않습니다.
+        아래는 그럼에도 남는 것들의 목록입니다.
+      </p>
+
+      <h2>제1조 (처리하는 개인정보 항목과 목적)</h2>
+
+      <h3>1. 자동으로 만들어지거나 수집되는 것</h3>
+      <table>
+        <thead><tr><th>항목</th><th>목적</th></tr></thead>
+        <tr><td>익명 계정 식별자(임의의 UUID)</td><td>같은 이용자의 잔별·온기를 이어 주기 위해</td></tr>
+        <tr><td>접속 일시, IP 주소, 브라우저·기기 정보</td><td>서비스 운영, 장애 대응, 부정 이용 방지</td></tr>
+      </table>
+      <p class="note">
+        익명 계정 식별자는 무작위로 만든 값이며, 이름이나 연락처와 연결되지 않습니다.
+        이용자가 직접 카카오·구글 계정을 연결하기 전까지 운영자는 이용자가 누구인지 알지 못합니다.
+      </p>
+
+      <h3>2. 이용자가 직접 입력하는 것</h3>
+      <table>
+        <thead><tr><th>항목</th><th>목적</th></tr></thead>
+        <tr><td>잔별의 글, 첨부한 사진</td><td>서비스의 핵심 기능 — 기록과 공개</td></tr>
+        <tr><td>표시 이름 (기본값 '나')</td><td>잔별과 별빛에 작성자를 표시</td></tr>
+        <tr><td>온기 기록, 별빛(답글)</td><td>공감 주고받기, 중복 집계 방지</td></tr>
+        <tr><td>신고 내용, 차단 목록</td><td>이용자 보호, 부적절한 게시물 조치</td></tr>
+        <tr><td>소개 동의 여부</td><td>공식 소셜미디어 소개 대상 여부 확인</td></tr>
+      </table>
+      <p>
+        잔별의 글은 이용자가 자유롭게 쓰는 것이므로, 내용에 따라 「개인정보 보호법」상
+        민감정보(건강, 정신건강 등)가 포함될 수 있습니다. 운영자는 이를 별도로 분석하거나
+        분류하지 않으며, 이용자는 언제든 해당 잔별을 삭제할 수 있습니다.
+      </p>
+
+      <h3>3. 이용자가 선택했을 때만 (내 성단 지키기)</h3>
+      <table>
+        <thead><tr><th>항목</th><th>목적</th></tr></thead>
+        <tr><td>카카오·구글이 제공하는 계정 식별자, 이메일 주소</td><td>기기를 바꿔도 같은 성단을 이어 쓰게 하기 위해</td></tr>
+      </table>
+
+      <h3>4. 서버로 보내지 않는 것</h3>
+      <p>
+        아래는 이용자의 브라우저에만 저장되며 운영자에게 전송되지 않습니다.
+        브라우저 기록을 지우면 함께 사라집니다.
+      </p>
+      <ul>
+        <li><b>별길</b> — 어느 잔별을 언제 읽었는지</li>
+        <li>첫 안내를 보았는지 여부</li>
+        <li>로그인 상태를 유지하기 위한 세션 정보</li>
+      </ul>
+      <p class="note">
+        읽음 기록을 서버에 두지 않는 것은 기술적 선택이 아니라 의도입니다. 누가 내 글을
+        읽고 지나갔는지가 보이는 순간, 읽고도 아무 말 없는 일이 서운함이 됩니다.
+        잔별은 그 감정을 만들지 않으려 합니다.
+      </p>
+
+      <h2>제2조 (만 14세 미만 아동)</h2>
+      <p>
+        서비스는 만 14세 이상만 이용할 수 있으며, 만 14세 미만 아동의 개인정보를
+        처리하지 않습니다. 만 14세 미만 아동의 이용 사실을 알게 된 경우 해당 계정과
+        기록을 지체 없이 파기합니다.
+      </p>
+
+      <h2>제3조 (보유 및 이용 기간)</h2>
+      <table>
+        <thead><tr><th>구분</th><th>기간</th></tr></thead>
+        <tr><td>계정 정보, 잔별, 온기, 별빛, 사진</td><td>이용자가 삭제할 때까지. 계정 삭제 시 즉시 파기</td></tr>
+        <tr><td>접속 기록·IP 등 서비스 로그</td><td>수집일로부터 3개월</td></tr>
+        <tr><td>신고 기록</td><td>처리 완료 후 1년 (재발 확인 및 분쟁 대응)</td></tr>
+        <tr><td>차단 목록</td><td>차단 해제 또는 계정 삭제 시까지</td></tr>
+      </table>
+      <p>
+        법령이 보관을 의무화한 정보가 있는 경우에는 해당 법령이 정한 기간 동안 보관합니다.
+      </p>
+
+      <h2>제4조 (제3자 제공)</h2>
+      <p>
+        운영자는 이용자의 개인정보를 제3자에게 제공하지 않습니다. 다만 법령에 근거가
+        있거나 수사기관이 적법한 절차에 따라 요청하는 경우에는 그러하지 않습니다.
+      </p>
+      <p>
+        이용자가 <b>'소개해도 좋아요'를 직접 선택한 잔별</b>에 한하여, 그 잔별의 글·감정·온기 수가
+        서비스 공식 인스타그램 계정에 게시됩니다. 이때 작성자의 이름이나 계정 정보는 포함되지 않습니다.
+        동의는 나의 성단에서 언제든 철회할 수 있습니다.
+      </p>
+
+      <h2>제5조 (처리의 위탁)</h2>
+      <p>운영자는 서비스 제공을 위해 아래와 같이 개인정보 처리를 위탁하고 있습니다.</p>
+      <table>
+        <thead><tr><th>수탁자</th><th>위탁 업무</th><th>보관 위치</th></tr></thead>
+        <tr>
+          <td>Supabase, Inc.</td>
+          <td>데이터베이스, 계정 인증, 사진 보관</td>
+          <td>대한민국 (서울 리전)</td>
+        </tr>
+        <tr>
+          <td>Vercel, Inc.</td>
+          <td>웹사이트 호스팅 및 전송</td>
+          <td>글로벌 엣지 네트워크</td>
+        </tr>
+      </table>
+      <p>
+        운영자는 위탁계약 시 개인정보의 안전한 관리에 관한 사항을 문서로 정하고,
+        수탁자가 이를 지키는지 감독합니다. 수탁자나 위탁 업무가 바뀌면 이 방침을 통해 알립니다.
+      </p>
+
+      <h2>제6조 (개인정보의 국외 이전)</h2>
+      <p>
+        서비스가 이용하는 수탁자는 모두 해외 법인입니다. 데이터베이스와 사진은
+        대한민국(서울) 리전에 저장되지만, 웹사이트를 전송하는 과정에서 접속 기록이
+        국외 서버를 거칠 수 있습니다. 해당 내역은 아래와 같습니다.
+      </p>
+      <table>
+        <thead><tr><th>이전받는 자</th><th>국가</th><th>이전 항목</th><th>이전 일시·방법</th><th>목적</th><th>보유 기간</th></tr></thead>
+        <tr>
+          <td>Vercel, Inc.</td><td>미국 등</td><td>접속 기록, IP 주소</td>
+          <td>서비스 접속 시 네트워크를 통해 전송</td><td>웹사이트 전송 및 장애 대응</td><td>수집일로부터 3개월</td>
+        </tr>
+      </table>
+
+      <h2>제7조 (파기 절차 및 방법)</h2>
+      <ol>
+        <li>
+          보유 기간이 지나거나 처리 목적이 끝난 개인정보는 지체 없이 파기합니다.
+          이용자가 계정을 삭제하면 그 즉시 파기 절차가 시작됩니다.
+        </li>
+        <li>
+          전자적 파일 형태의 정보는 복구할 수 없는 방법으로 삭제하고, 종이에 출력된 정보가
+          있다면 분쇄하거나 소각합니다.
+        </li>
+        <li>
+          이용자가 올린 사진은 계정 삭제 시 저장소에서 함께 삭제됩니다.
+        </li>
+      </ol>
+
+      <h2>제8조 (이용자의 권리와 행사 방법)</h2>
+      <p>이용자는 언제든 아래 권리를 행사할 수 있습니다.</p>
+      <ul>
+        <li><b>열람</b> — 나의 성단에서 자신이 띄운 잔별과 받은 온기를 모두 볼 수 있습니다</li>
+        <li><b>정정</b> — 표시 이름은 나의 성단에서 직접 바꿀 수 있습니다</li>
+        <li><b>삭제</b> — 개별 잔별, 내가 띄운 잔별 전체, 계정 전체를 각각 지울 수 있습니다</li>
+        <li><b>처리정지</b> — 소개 동의 철회, 계정 삭제로 행사할 수 있습니다</li>
+      </ul>
+      <p>
+        서비스 화면에서 처리하기 어려운 요청은 제9조의 이메일로 보내 주시면
+        지체 없이(요청일로부터 10일 이내) 조치하고 결과를 알려 드립니다.
+        법정대리인이나 위임받은 사람을 통해서도 행사할 수 있습니다.
+      </p>
+      <p class="note">
+        다만 익명 계정은 본인 확인 수단이 없습니다. 브라우저를 바꾼 뒤에 "전에 쓴 잔별을
+        지워 달라"고 요청하시면, 운영자는 그 잔별이 요청하신 분의 것인지 확인할 방법이
+        없어 응하기 어렵습니다. 이 점이 익명 서비스의 한계입니다.
+      </p>
+
+      <h2>제9조 (개인정보 보호책임자)</h2>
+      <table>
+        <tr><th>개인정보 보호책임자</th><td>잔별 운영팀</td></tr>
+        <tr><th>이메일</th><td><a href="mailto:cool6001@gmail.com">cool6001@gmail.com</a></td></tr>
+      </table>
+      <p>
+        개인정보 처리와 관련한 문의, 불만, 피해 구제는 위 연락처로 보내 주세요.
+        운영자는 지체 없이 답변하겠습니다.
+      </p>
+
+      <h2>제10조 (자동 수집 장치의 설치·운영 및 거부)</h2>
+      <p>
+        서비스는 광고나 행태정보 수집을 위한 쿠키를 사용하지 않습니다. 다만 로그인 상태를
+        유지하기 위해 브라우저의 로컬 저장소(localStorage)에 세션 정보를 저장합니다.
+      </p>
+      <p>
+        저장을 원하지 않으시면 브라우저 설정에서 사이트 데이터를 차단하거나 삭제할 수
+        있습니다. 다만 그렇게 하면 이전에 띄운 잔별에 다시 접근하지 못할 수 있습니다.
+      </p>
+
+      <h2>제11조 (안전성 확보 조치)</h2>
+      <ul>
+        <li>모든 통신은 HTTPS로 암호화합니다</li>
+        <li>
+          데이터베이스에 행 단위 접근 제어(RLS)를 적용하여, 각 이용자가 자신에게 허용된
+          정보에만 접근하도록 제한합니다. 특히 <b>누가 어느 잔별에 온기를 주었는지는
+          본인 외에는 조회할 수 없습니다.</b>
+        </li>
+        <li>관리자 권한 키는 서버 환경에만 두고 브라우저로 내보내지 않습니다</li>
+        <li>개인정보에 접근할 수 있는 사람을 최소한으로 제한합니다</li>
+      </ul>
+
+      <h2>제12조 (권익침해 구제 방법)</h2>
+      <p>
+        개인정보 침해로 도움이 필요하시면 아래 기관에 문의하실 수 있습니다.
+      </p>
+      <table>
+        <thead><tr><th>기관</th><th>전화</th><th>홈페이지</th></tr></thead>
+        <tr><td>개인정보분쟁조정위원회</td><td>1833-6972</td><td>kopico.go.kr</td></tr>
+        <tr><td>개인정보침해신고센터</td><td>(국번없이) 118</td><td>privacy.kisa.or.kr</td></tr>
+        <tr><td>대검찰청 사이버수사과</td><td>(국번없이) 1301</td><td>spo.go.kr</td></tr>
+        <tr><td>경찰청 사이버수사국</td><td>(국번없이) 182</td><td>ecrm.police.go.kr</td></tr>
+      </table>
+
+      <h2>제13조 (방침의 변경)</h2>
+      <p>
+        이 방침이 변경되는 경우 적용일과 변경 내용을 서비스 화면에 게시하여 알립니다.
+        이용자에게 중대한 영향을 주는 변경은 적용일 30일 전부터 알립니다.
+      </p>
+
+      <h2>부칙</h2>
+      <p>이 방침은 2026년 10월 1일부터 시행합니다.</p>
+
+      <footer>
+        <a href="/">잔별</a> · <a href="/terms">이용약관</a>
+      </footer>
+    </div>
+  </body>
+</html>

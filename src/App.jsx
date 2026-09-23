@@ -56,8 +56,8 @@ const ORBIT_R2 = 820 // 2겹 — 그 잔별이 닿은 잔별 (넓은 화면에�
 const ANCHOR_CLEAR = 240
 
 /** 넓은 화면에서 좌우를 가리는 것들의 너비 — 이만큼 하늘이 비켜섭니다 */
-const CARD_DOCK = 412 // 오른쪽 잔별 카드 (글자를 키워 372px로 넓힘)
-const PANEL_DOCK = 372 // 왼쪽 나의 성단 패널
+const CARD_DOCK = 488 // 오른쪽 잔별 카드 (넓은 화면 448px + 여백)
+const PANEL_DOCK = 462 // 왼쪽 나의 성단 패널 (넓은 화면 430px + 여백)
 
 /** 점수(0~10)를 궤도 반지름으로 */
 function orbitRadiusFor(score) {
@@ -99,8 +99,23 @@ function pickDemoStar(stars, graph, myId) {
 }
 
 export default function App() {
-  const { me, stars, ready, addStar, toggleWarm, addReply, reset, read, readMap, markRead, clearRead } =
-    useJanbyeol()
+  const {
+    me,
+    stars,
+    ready,
+    trouble,
+    addStar,
+    toggleWarm,
+    addReply,
+    report,
+    block,
+    setAllowFeature,
+    reset,
+    read,
+    readMap,
+    markRead,
+    clearRead,
+  } = useJanbyeol()
 
   const [selectedId, setSelectedId] = useState(null)
   const [cardOpen, setCardOpen] = useState(false) // 카드를 닫아도 줌인은 남는다
@@ -409,6 +424,31 @@ export default function App() {
   /** 카드를 닫아도 줌인·궤도·연결은 그대로 남는다 */
   const closeCard = useCallback(() => setCardOpen(false), [])
 
+  /* 하늘에 닿지 못했을 때 — 별이 없는 것과 못 불러온 것은 다릅니다 */
+  useEffect(() => {
+    if (trouble) say('지금은 하늘에 닿지 못했어요. 잠시 뒤에 다시 열어주세요.')
+  }, [trouble, say])
+
+  /* ---------- 누군가 보내준 잔별을 열고 들어왔을 때 ----------
+     /s/<id> 가 /?star=<id> 로 데려다줍니다. 하늘이 다 준비된 뒤에
+     그 별 하나를 열어주고, 주소는 깨끗하게 지웁니다.
+     (주소창에 남아 있으면 새로고침할 때마다 같은 별이 열려요) */
+  const sharedOpened = useRef(false)
+  useEffect(() => {
+    if (!ready || sharedOpened.current) return
+    const id = new URLSearchParams(window.location.search).get('star')
+    if (!id) return
+    sharedOpened.current = true
+
+    if (stars.some((s) => s.id === id)) {
+      setTourOpen(false) // 보러 온 별이 있는데 안내부터 띄우지 않습니다
+      handleSelect(id)
+    } else {
+      say('그 잔별은 이미 하늘에서 내려갔어요')
+    }
+    window.history.replaceState(null, '', window.location.pathname)
+  }, [ready, stars, handleSelect, say])
+
   /**
    * 카드를 잠깐 열어둔 것만으로 읽었다고 하지는 않습니다.
    * 스쳐 지나간 탭까지 길이 되면 지도가 거짓말을 하게 되니까요.
@@ -517,6 +557,25 @@ export default function App() {
       say('별빛을 이어 보냈어요')
     },
     [addReply, say]
+  )
+
+  /* ---------- 불편한 별을 만났을 때 ---------- */
+
+  // 신고·차단한 별은 하늘에서 바로 사라지므로, 열려 있던 카드도 함께 닫습니다
+  const handleReport = useCallback(
+    async (id, reason) => {
+      await report(id, reason)
+      closeCard()
+    },
+    [report, closeCard]
+  )
+
+  const handleBlock = useCallback(
+    async (userId) => {
+      await block(userId)
+      closeCard()
+    },
+    [block, closeCard]
   )
 
   /* ---------- 첫 안내 ---------- */
@@ -738,6 +797,10 @@ export default function App() {
             shine={shineOn && brightest?.id === selected.id}
             onWarm={handleWarm}
             onReply={handleReply}
+            onReport={handleReport}
+            onBlock={handleBlock}
+            onNotice={say}
+            onAllowFeature={setAllowFeature}
             onClose={closeCard}
           />
         )}
@@ -755,6 +818,8 @@ export default function App() {
           onSelectStar={handleSelect}
           roadCount={readTrail.length}
           onContact={() => setContactOpen(true)}
+          me={me}
+          onNotice={say}
           onClearRoad={() => {
             clearRead()
             setReReading(null)
@@ -767,7 +832,7 @@ export default function App() {
             setReReading(null)
             setKindred({ anchorId: null, ids: [] })
             setMineMode(false)
-            say('하늘을 처음 상태로 되돌렸어요')
+            say('내가 띄운 잔별을 모두 거뒀어요')
           }}
         />
       )}

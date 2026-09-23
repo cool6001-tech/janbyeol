@@ -13,6 +13,10 @@ export default function Composer({ onSubmit, onFocus, compact = false }) {
   const [text, setText] = useState('')
   const [photo, setPhoto] = useState(null)
   const [typing, setTyping] = useState(false)
+  // 공식 계정에 소개해도 되는 글인지. **기본은 꺼짐입니다.**
+  // 약관 한 줄로 갈음하지 않는 이유는, 사적인 글을 다루는 서비스에서
+  // "동의한 줄 몰랐는데 내 글이 올라갔다"는 사고가 한 번이면 끝이기 때문입니다.
+  const [allowFeature, setAllowFeature] = useState(false)
   const fileRef = useRef(null)
   const areaRef = useRef(null)
 
@@ -36,9 +40,10 @@ export default function Composer({ onSubmit, onFocus, compact = false }) {
   const submit = (e) => {
     e.preventDefault()
     if (!text.trim()) return
-    onSubmit({ text, photo })
+    onSubmit({ text, photo, allowFeature })
     setText('')
     setPhoto(null)
+    setAllowFeature(false) // 다음 글은 다시 처음부터 묻습니다
     setTyping(false)
     if (fileRef.current) fileRef.current.value = ''
     if (areaRef.current) {
@@ -106,6 +111,29 @@ export default function Composer({ onSubmit, onFocus, compact = false }) {
           잔별 띄우기
         </button>
       </div>
+
+      {/* 쓰기 시작한 사람에게만 보입니다. 빈 입력창 옆에 약관 문구가 붙어 있으면
+          첫인상이 계약서가 되니까요. */}
+      {!folded && (text.trim() || photo) && (
+        <div className="consent">
+          <label className="consent-pick">
+            <input
+              type="checkbox"
+              checked={allowFeature}
+              onChange={(e) => setAllowFeature(e.target.checked)}
+            />
+            <span>
+              이 잔별은 <b>잔별 공식 계정에 소개</b>되어도 좋아요
+              <small>이름 없이 글과 온기 수만 실립니다. 나중에 언제든 거둘 수 있어요.</small>
+            </span>
+          </label>
+          <p className="consent-note">
+            띄우면 <a href="/terms.html" target="_blank" rel="noreferrer">이용약관</a>과{' '}
+            <a href="/privacy.html" target="_blank" rel="noreferrer">개인정보처리방침</a>에 동의하는 것으로 보며,
+            만 14세 이상만 이용할 수 있습니다. 띄운 잔별은 모두에게 공개됩니다.
+          </p>
+        </div>
+      )}
     </form>
   )
 }
