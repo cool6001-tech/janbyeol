@@ -4,6 +4,16 @@ import { relativeWhen, readWhen, isAnniversary, yearsAgo } from '../lib/time.js'
 import { emotionOf, EMOTION_COLORS, cssColor } from '../lib/emotionColor.js'
 import StarGuard from './StarGuard.jsx'
 
+/** 빈 줄로 나뉜 문단들 — 한 줄짜리 줄바꿈은 문단 안에 그대로 남습니다 */
+function paragraphsOf(text = '') {
+  const parts = text
+    .replace(/\r\n/g, '\n')
+    .split(/\n{2,}/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+  return parts.length ? parts : [text.trim()]
+}
+
 /**
  * 잔별 카드
  * 우주 뷰에서는 보이지 않던 사진이, 여기서만 어두운 톤으로 깔립니다.
@@ -110,7 +120,15 @@ export default function StarCard({
           {/* 하늘의 별길을 놓쳤더라도, 여는 순간 바로 알 수 있게 */}
           {readAt && <em className="seen">{readWhen(readAt)}</em>}
         </div>
-        <div className="body">{star.text}</div>
+        {/* 글쓴이가 끊어 쓴 자리를 지킵니다.
+            한 덩어리로 쏟아놓으면 열 줄짜리 벽이 되고, 읽는 사람은 숨 쉴 데가 없습니다.
+            빈 줄은 문단으로, 한 줄 줄바꿈은 그대로. 빈 줄을 아무리 많이 넣어도
+            문단 사이 간격은 한 번만 벌어집니다 — 카드가 찢어지지 않도록. */}
+        <div className={`body${star.text.length > 150 ? ' long' : ''}`}>
+          {paragraphsOf(star.text).map((para, i) => (
+            <p key={i}>{para}</p>
+          ))}
+        </div>
         <div className="tags">
           {star.tags.map((t) => (
             <span className="tag" key={t}>
