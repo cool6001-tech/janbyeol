@@ -2981,17 +2981,21 @@ ul {
   color: var(--mist-hi);
 }
 
-/* 이 별 거두기 — 있지만 부르지 않는 자리.
+/* 이 별 거두기 — 글이 끝나는 자리, 오른쪽 끝에 조용히.
    빨갛게 칠하지 않습니다. 겁주려고 둔 버튼이 아니니까요. */
 .removeone {
   display: flex;
-  align-items: center;
+  align-items: baseline;
+  justify-content: flex-end;
   flex-wrap: wrap;
-  gap: 10px;
-  margin: 10px 0 2px;
+  gap: 12px;
+  margin-top: 14px;
   font-size: var(--fs-xs);
   line-height: 1.6;
   color: var(--mist);
+}
+.removeone span {
+  margin-right: auto; /* 물어볼 때만 보이는 줄 — 왼쪽에 붙여 읽기 편하게 */
 }
 .removeone button {
   padding: 0;

@@ -139,6 +139,29 @@ export default function StarCard({
         {anniversary && (
           <p className="anniversary">{yearsAgo(star.createdAt)}년 전 오늘, 당신은 여기 있었어요.</p>
         )}
+
+        {/* 내 잔별에만 — 글이 끝나는 자리에 둡니다.
+            글을 다 읽고 "이건 내리고 싶다"는 마음이 드는 지점이 바로 여기라서요.
+            한 번에 지우지 않고 한 번 더 묻습니다. 되돌릴 수 없으니까요. */}
+        {mine && onRemove && (
+          <div className="removeone">
+            {confirmRemove ? (
+              <>
+                <span>이어진 별빛과 온기도 함께 사라져요.</span>
+                <button type="button" className="yes" onClick={() => onRemove(star.id)}>
+                  거두기
+                </button>
+                <button type="button" onClick={() => setConfirmRemove(false)}>
+                  그대로 두기
+                </button>
+              </>
+            ) : (
+              <button type="button" onClick={() => setConfirmRemove(true)}>
+                이 별 거두기
+              </button>
+            )}
+          </div>
+        )}
         {/* '이 마음은 N명의 잔별 M개에 닿아 있어요'는 뺐습니다. 숫자가 둘이라 읽히지 않았고,
             내 별에서는 아래 '별거 아니라 생각한 이 한 줄이, N명의 밤을 비췄어요' 한 줄이면 충분해요. */}
       </div>
@@ -184,28 +207,6 @@ export default function StarCard({
             />
             <span>잔별 공식 계정에 소개되어도 좋아요</span>
           </label>
-        )}
-
-        {/* 내 잔별에만 — 전부 지우지 않고도 이 하나만 내릴 수 있어야 합니다.
-            한 번에 지우지 않고 한 번 더 묻습니다. 되돌릴 수 없으니까요. */}
-        {mine && onRemove && (
-          <div className="removeone">
-            {confirmRemove ? (
-              <>
-                <span>이 별을 거두면 이어진 별빛과 온기도 함께 사라져요.</span>
-                <button type="button" className="yes" onClick={() => onRemove(star.id)}>
-                  거두기
-                </button>
-                <button type="button" onClick={() => setConfirmRemove(false)}>
-                  그대로 두기
-                </button>
-              </>
-            ) : (
-              <button type="button" onClick={() => setConfirmRemove(true)}>
-                이 별 거두기
-              </button>
-            )}
-          </div>
         )}
 
         <div className="threads">
