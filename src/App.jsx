@@ -107,6 +107,7 @@ export default function App() {
     addStar,
     toggleWarm,
     addReply,
+    removeStar,
     report,
     block,
     setAllowFeature,
@@ -578,6 +579,20 @@ export default function App() {
     [block, closeCard]
   )
 
+  /** 내 별 하나 거두기 — 카드를 먼저 닫아야 사라지는 게 자연스럽습니다 */
+  const handleRemoveStar = useCallback(
+    async (id) => {
+      closeCard()
+      try {
+        await removeStar(id)
+        say('그 별을 거뒀어요.')
+      } catch {
+        say('지금은 하늘에 닿지 못했어요. 잠시 뒤에 다시 해주세요.')
+      }
+    },
+    [removeStar, closeCard, say]
+  )
+
   /* ---------- 첫 안내 ---------- */
 
   const demoStar = useMemo(() => pickDemoStar(stars, graph, me.id), [stars, graph, me.id])
@@ -801,6 +816,7 @@ export default function App() {
             onBlock={handleBlock}
             onNotice={say}
             onAllowFeature={setAllowFeature}
+            onRemove={handleRemoveStar}
             onClose={closeCard}
           />
         )}

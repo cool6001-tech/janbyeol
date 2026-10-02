@@ -281,12 +281,53 @@ export const storage = {
     return (data || []).map((b) => ({ id: b.blocked_id, name: b.profiles?.name || '어떤 사람' }))
   },
 
+  /**
+   * 별 하나만 거둡니다.
+   *
+   * 쓰고 나서 후회하는 순간이 반드시 옵니다. 그때 **전부 지우는 것 말고**
+   * 그 하나만 내릴 길이 있어야 합니다. 온기와 답글은 외래키 cascade 로
+   * 함께 사라지고, 올린 사진도 같이 지웁니다 — 글만 지우고 사진이 주소로
+   * 남아 있으면 지웠다고 말할 수 없으니까요.
+   *
+   * `author_id` 조건은 RLS 와 겹치는 안전장치입니다. 둘 중 하나가
+   * 무너져도 남의 별은 지워지지 않습니다.
+   */
+  async removeStar(starId) {
+    await ensureUser()
+
+    const { data: star } = await sb
+      .from('stars')
+      .select('photo_url')
+      .eq('id', starId)
+      .eq('author_id', cachedUser.id)
+      .maybeSingle()
+
+    if (star?.photo_url) {
+      const path = photoPathOf(star.photo_url)
+      if (path) await sb.storage.from(PHOTO_BUCKET).remove([path])
+    }
+
+    const { error } = await sb
+      .from('stars')
+      .delete()
+      .eq('id', starId)
+      .eq('author_id', cachedUser.id)
+    if (error) throw error
+  },
+
   /** 내가 띄운 별을 전부 거둡니다 (남의 별은 건드리지 않습니다) */
   async clearAll() {
     await ensureUser()
     const { error } = await sb.from('stars').delete().eq('author_id', cachedUser.id)
     if (error) throw error
   },
+}
+
+/** 공개 주소에서 버킷 안의 경로만 뽑아냅니다 (…/star-photos/<유저>/<별>.jpg) */
+function photoPathOf(publicUrl) {
+  const marker = `/${PHOTO_BUCKET}/`
+  const at = publicUrl.indexOf(marker)
+  return at === -1 ? null : publicUrl.slice(at + marker.length)
 }
 
 /* ---------------------------------------------------------------

@@ -21,13 +21,16 @@ export default function StarCard({
   onBlock,
   onNotice,
   onAllowFeature,
+  onRemove,
   onClose,
 }) {
   const [draft, setDraft] = useState('')
+  const [confirmRemove, setConfirmRemove] = useState(false)
   const bodyRef = useRef(null)
 
   useEffect(() => {
     setDraft('')
+    setConfirmRemove(false) // 다른 별을 열면 물음은 닫힙니다
     if (bodyRef.current) bodyRef.current.scrollTop = 0
   }, [star?.id])
 
@@ -163,6 +166,28 @@ export default function StarCard({
             />
             <span>잔별 공식 계정에 소개되어도 좋아요</span>
           </label>
+        )}
+
+        {/* 내 잔별에만 — 전부 지우지 않고도 이 하나만 내릴 수 있어야 합니다.
+            한 번에 지우지 않고 한 번 더 묻습니다. 되돌릴 수 없으니까요. */}
+        {mine && onRemove && (
+          <div className="removeone">
+            {confirmRemove ? (
+              <>
+                <span>이 별을 거두면 이어진 별빛과 온기도 함께 사라져요.</span>
+                <button type="button" className="yes" onClick={() => onRemove(star.id)}>
+                  거두기
+                </button>
+                <button type="button" onClick={() => setConfirmRemove(false)}>
+                  그대로 두기
+                </button>
+              </>
+            ) : (
+              <button type="button" onClick={() => setConfirmRemove(true)}>
+                이 별 거두기
+              </button>
+            )}
+          </div>
         )}
 
         <div className="threads">

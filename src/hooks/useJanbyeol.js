@@ -160,6 +160,23 @@ export function useJanbyeol() {
     }
   }, [])
 
+  /** 내 별 하나를 거둡니다 — 전부 지우지 않고도 빠져나갈 길 */
+  const removeStar = useCallback(async (starId) => {
+    const before = await new Promise((done) => {
+      setStars((prev) => {
+        done(prev)
+        return prev.filter((s) => s.id !== starId)
+      })
+    })
+    try {
+      await storage.removeStar(starId)
+    } catch (err) {
+      console.error('[잔별] 별을 거두지 못했습니다.', err)
+      setStars(before) // 못 지웠으면 다시 하늘에 올려둡니다
+      throw err
+    }
+  }, [])
+
   /** 신고 — 쌓이면 서버가 알아서 가립니다 */
   const report = useCallback(async (starId, reason) => {
     await storage.report({ starId }, reason)
@@ -204,6 +221,7 @@ export function useJanbyeol() {
     addStar,
     toggleWarm,
     addReply,
+    removeStar,
     report,
     block,
     setAllowFeature,
