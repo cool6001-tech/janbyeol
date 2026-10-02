@@ -129,13 +129,11 @@ export default function StarCard({
             <p key={i}>{para}</p>
           ))}
         </div>
-        <div className="tags">
-          {star.tags.map((t) => (
-            <span className="tag" key={t}>
-              {t}
-            </span>
-          ))}
-        </div>
+        {/* 태그는 화면에 적지 않습니다.
+            글 끝에 '바다 · 피로 · 일' 같은 낱말이 붙으면, 방금 읽은 이야기를
+            세 단어로 분류해버리는 느낌이 듭니다. 잔별에서 할 일은 아니에요.
+            다만 태그 자체는 살아 있습니다 — 별이 은하 어디쯤에 자리잡을지,
+            무슨 색으로 빛날지를 이 값이 정합니다 (galaxy.js, emotionColor.js). */}
         {anniversary && (
           <p className="anniversary">{yearsAgo(star.createdAt)}년 전 오늘, 당신은 여기 있었어요.</p>
         )}
