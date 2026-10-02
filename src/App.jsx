@@ -111,7 +111,6 @@ export default function App() {
     report,
     block,
     setAllowFeature,
-    reset,
     read,
     readMap,
     markRead,
@@ -840,15 +839,6 @@ export default function App() {
             clearRead()
             setReReading(null)
             say('별길을 지웠어요. 다시 처음부터 걸어도 돼요.')
-          }}
-          onReset={() => {
-            reset()
-            setSelectedId(null)
-            setCardOpen(false)
-            setReReading(null)
-            setKindred({ anchorId: null, ids: [] })
-            setMineMode(false)
-            say('내가 띄운 잔별을 모두 거뒀어요')
           }}
         />
       )}

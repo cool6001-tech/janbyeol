@@ -14,7 +14,6 @@ export default function ConstellationPanel({
   onToggle,
   onClose,
   onSelectStar,
-  onReset,
   roadCount = 0,
   onClearRoad,
   onContact,
@@ -184,16 +183,10 @@ export default function ConstellationPanel({
           </footer>
         )}
 
-        <footer className="panelfoot">
-          <p>내가 띄운 잔별만 거둡니다. 다른 사람의 별은 하늘에 그대로 남아요.</p>
-          <button
-            onClick={() => {
-              if (window.confirm('내가 띄운 잔별을 모두 거둘까요? 되돌릴 수 없습니다.')) onReset()
-            }}
-          >
-            내 잔별 거두기
-          </button>
-        </footer>
+        {/* '내 잔별 거두기'(전부 지우기)는 뺐습니다.
+            이제 별 하나하나를 그 카드에서 거둘 수 있으니, 여기 또 두면
+            "전부 지우기"가 먼저 눈에 띄는 패널이 됩니다.
+            계정까지 통째로 지우는 길은 맨 아래 AccountFooter 에 남아 있습니다. */}
 
         {/* 맨 아래 — 내 기록을 다 돌아본 뒤에야 닿는 자리. 조용히, 그러나 편지처럼. */}
         {onContact && (
