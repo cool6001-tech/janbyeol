@@ -18,6 +18,18 @@ import { sb } from './supabase.js'
 import { currentUser, ensureUser } from './storage.js'
 
 /**
+ * 제공자에게 **무엇을 달라고 할지** 직접 적습니다.
+ *
+ * 비워두면 Supabase 가 자기 기본값을 보내는데, 카카오의 경우 거기에
+ * account_email 이 들어 있습니다. 잔별은 이메일을 쓰지 않고
+ * 개인정보처리방침에도 수집 항목으로 적지 않았으니 받으면 안 됩니다.
+ * (그리고 카카오 쪽에 그 동의항목을 안 켜두면 KOE205 로 막힙니다.)
+ */
+const SCOPES = {
+  kakao: 'profile_nickname profile_image',
+}
+
+/**
  * 지금 익명 계정에 소셜 계정을 덧붙입니다.
  * 브라우저가 해당 제공자로 떠났다가 돌아옵니다.
  */
@@ -25,7 +37,10 @@ export async function keepMyConstellation(provider = 'kakao') {
   await ensureUser()
   const { error } = await sb.auth.linkIdentity({
     provider,
-    options: { redirectTo: `${window.location.origin}/` },
+    options: {
+      redirectTo: `${window.location.origin}/`,
+      ...(SCOPES[provider] ? { scopes: SCOPES[provider] } : {}),
+    },
   })
   if (error) throw error
 }
