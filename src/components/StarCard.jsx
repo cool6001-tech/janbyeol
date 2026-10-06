@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { photoOf, hasPhoto } from '../lib/photo.js'
 import { relativeWhen, readWhen, isAnniversary, yearsAgo } from '../lib/time.js'
 import { emotionOf, EMOTION_COLORS, cssColor } from '../lib/emotionColor.js'
@@ -36,21 +37,25 @@ export default function StarCard({
 }) {
   const [draft, setDraft] = useState('')
   const [confirmRemove, setConfirmRemove] = useState(false)
+  const [viewPhoto, setViewPhoto] = useState(false) // 사진 크게 보기
   const bodyRef = useRef(null)
 
   useEffect(() => {
     setDraft('')
     setConfirmRemove(false) // 다른 별을 열면 물음은 닫힙니다
+    setViewPhoto(false)
     if (bodyRef.current) bodyRef.current.scrollTop = 0
   }, [star?.id])
 
   useEffect(() => {
     const onKey = (e) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key !== 'Escape') return
+      if (viewPhoto) setViewPhoto(false) // 크게 보던 사진부터 닫습니다
+      else onClose()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
+  }, [onClose, viewPhoto])
 
   if (!star) return <section className="card" aria-hidden="true" />
 
@@ -104,7 +109,18 @@ export default function StarCard({
           이제는 얼마나 길게 썼든 카드 안에서 끝까지 내려 읽을 수 있습니다. */}
       <div className="cardscroll" ref={bodyRef}>
       <div className={`cardhead${hasPhoto(star) ? ' haspic' : ''}`}>
-        {photo && <div className="photo" style={{ backgroundImage: `url(${photo})` }} />}
+        {/* 사진은 카드 위쪽에 또렷하게, 아래로만 글 쪽으로 스며들게.
+            예전엔 글 뒤에 42% 밝기로 깔려서 무엇을 찍었는지 거의 안 보였어요.
+            누르면 크게 볼 수 있습니다. */}
+        {photo && (
+          <button
+            type="button"
+            className="photo"
+            style={{ backgroundImage: `url(${photo})` }}
+            onClick={() => setViewPhoto(true)}
+            aria-label="사진 크게 보기"
+          />
+        )}
         {shine && (
           <div className="shinebadge">
             <span className="shinebadge-star" aria-hidden="true" />
@@ -252,6 +268,17 @@ export default function StarCard({
         />
         <button type="submit">잇기</button>
       </form>
+      {/* 카드는 움직임(transform)이 걸려 있어 그 안에서는 '화면 가득'이 카드 크기로 갇힙니다.
+          그래서 화면 맨 바깥(body)에 따로 띄웁니다. */}
+      {viewPhoto && photo && createPortal(
+        <div className="photoview" role="dialog" aria-label="사진" onClick={() => setViewPhoto(false)}>
+          <img src={photo} alt="이 잔별에 담긴 사진" />
+          <button type="button" className="photoview-close" aria-label="사진 닫기">
+            ×
+          </button>
+        </div>,
+        document.body
+      )}
     </section>
   )
 }
