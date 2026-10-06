@@ -2369,10 +2369,11 @@ ul {
   /* 접힌 시트가 살짝살짝 들썩입니다 — "여기를 올려보세요"를 말 대신 몸짓으로.
      대부분은 가만히 있고, 몇 초에 한 번만 두 번 숨 쉬듯 올라왔다 내려갑니다. */
   .panel.sheet:not(.open) {
-    animation: sheetNudge 4.2s ease-in-out 1.2s infinite;
+    /* 들어오자마자(0.4초 뒤) 첫 들썩임, 그다음부터 4.2초 간격 */
+    animation: sheetNudge 4.2s ease-in-out 0.4s infinite;
   }
   .panel.sheet:not(.open) .grab .grip {
-    animation: gripGlow 4.2s ease-in-out 1.2s infinite;
+    animation: gripGlow 4.2s ease-in-out 0.4s infinite;
   }
   .panel .panelhead {
     position: relative;
@@ -3157,33 +3158,32 @@ ul {
 
 /* ---------------- 나의 성단 시트 — 들썩임 ---------------- */
 @keyframes sheetNudge {
+  /* 움직임을 주기의 맨 앞에 둡니다 — 예전엔 58%까지 가만히 있다가 움직여서
+     첫 들썩임이 3.6초 뒤에야 나왔어요. 이제 시작하자마자 두 번 숨 쉬고, 나머지는 쉽니다. */
   0%,
-  58%,
+  42%,
   100% {
     transform: translateY(calc(100% - 84px));
   }
-  66% {
+  10% {
     transform: translateY(calc(100% - 96px));
   }
-  74% {
+  20% {
     transform: translateY(calc(100% - 84px));
   }
-  82% {
+  30% {
     transform: translateY(calc(100% - 92px));
-  }
-  90% {
-    transform: translateY(calc(100% - 84px));
   }
 }
 @keyframes gripGlow {
   0%,
-  58%,
+  42%,
   100% {
     background: rgba(150, 170, 215, 0.34);
     box-shadow: none;
   }
-  70%,
-  86% {
+  12%,
+  28% {
     background: rgba(255, 214, 170, 0.85);
     box-shadow: 0 0 10px rgba(255, 190, 130, 0.6);
   }
