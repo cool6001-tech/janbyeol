@@ -49,8 +49,109 @@ export function ensureUser() {
   return authPromise
 }
 
+/* ---------------------------------------------------------------
+   다른 기기에서 이미 지킨 성단으로 들어가기
+
+   폰에서 '카카오로 지키기'를 한 사람이 PC에서 또 누르면, PC의 새 익명 계정에
+   그 카카오를 붙일 수 없습니다 (이미 폰의 계정에 붙어 있으니까요).
+   Supabase 는 이때 주소에 error_code=identity_already_exists 를 달아 돌려보냅니다.
+
+   그 답을 받으면:
+     ① 지금 익명 계정의 토큰을 잠시 적어두고
+     ② 같은 제공자로 **로그인**해서 원래 성단으로 들어간 뒤
+     ③ merge-anonymous 함수가 이 기기에서 띄운 별을 원래 성단으로 옮깁니다.
+   그래서 폰과 PC가 같은 성단을 보게 됩니다.
+--------------------------------------------------------------- */
+const LINK_KEY = 'janbyeol.link.pending'
+const MERGE_KEY = 'janbyeol.merge.pending'
+const FRESH_MS = 30 * 60 * 1000
+
+// 첫 화면의 주소를 가장 먼저 붙잡아 둡니다 (다른 코드가 주소를 정리하기 전에)
+const landingUrl = typeof window !== 'undefined' ? window.location.href : ''
+let authNotice = null
+
+export function rememberPendingLink(provider) {
+  safeSet(LINK_KEY, JSON.stringify({ provider, at: Date.now() }))
+}
+
+/** 로그인 직후 한 번만 보여줄 안내 — App 이 꺼내 갑니다 */
+export function takeAuthNotice() {
+  const n = authNotice
+  authNotice = null
+  return n
+}
+
+function readJSON(key) {
+  try {
+    const v = JSON.parse(safeGet(key) || 'null')
+    return v && Date.now() - (v.at || 0) < FRESH_MS ? v : null
+  } catch {
+    return null
+  }
+}
+function forget(key) {
+  try {
+    window.localStorage.removeItem(key)
+  } catch {
+    /* 무시 */
+  }
+}
+
+/** 소셜 로그인에서 돌아온 주소의 오류 코드 (쿼리·해시 둘 다 봅니다) */
+function authErrorFromUrl() {
+  try {
+    const u = new URL(landingUrl)
+    const hash = new URLSearchParams(u.hash.replace(/^#/, ''))
+    const pick = (k) => u.searchParams.get(k) || hash.get(k)
+    const code = pick('error_code')
+    const desc = pick('error_description') || ''
+    if (!code && !pick('error')) return null
+    return { code, desc }
+  } catch {
+    return null
+  }
+}
+
+function cleanAuthParams() {
+  try {
+    const u = new URL(window.location.href)
+    ;['error', 'error_code', 'error_description'].forEach((k) => u.searchParams.delete(k))
+    const clean = u.pathname + (u.searchParams.toString() ? `?${u.searchParams}` : '')
+    window.history.replaceState(null, '', clean)
+  } catch {
+    /* 무시 */
+  }
+}
+
 async function resolveUser() {
   let { data } = await sb.auth.getSession()
+
+  // ── ①② 이미 다른 계정에 붙은 카카오/구글 → 그 계정으로 로그인하러 갑니다
+  const authErr = authErrorFromUrl()
+  if (authErr) {
+    cleanAuthParams()
+    const pending = readJSON(LINK_KEY)
+    forget(LINK_KEY)
+    const taken =
+      authErr.code === 'identity_already_exists' || /already linked|already exists/i.test(authErr.desc)
+    if (taken && pending?.provider) {
+      if (data.session?.user?.is_anonymous) {
+        safeSet(MERGE_KEY, JSON.stringify({ fromToken: data.session.access_token, at: Date.now() }))
+      }
+      const { error } = await sb.auth.signInWithOAuth({
+        provider: pending.provider,
+        options: { redirectTo: `${window.location.origin}/` },
+      })
+      if (!error) return new Promise(() => {}) // 곧 페이지를 떠납니다
+      console.error('[잔별] 원래 성단으로 들어가지 못했습니다.', error)
+    } else if (authErr.code || authErr.desc) {
+      console.error('[잔별] 소셜 연결이 끝나지 않았습니다.', authErr)
+      authNotice = '연결을 마치지 못했어요. 잠시 뒤에 다시 해주세요.'
+    }
+  } else if (data.session && !data.session.user.is_anonymous) {
+    // 연결이 정상적으로 끝났으면 기다리던 표시는 지웁니다
+    forget(LINK_KEY)
+  }
 
   if (!data.session) {
     const { data: anon, error } = await sb.auth.signInAnonymously()
@@ -62,6 +163,26 @@ async function resolveUser() {
   }
 
   const user = data.session.user
+
+  // ── ③ 로그인해서 돌아왔다면, 이 기기의 익명 성단을 옮겨 담습니다
+  const merge = readJSON(MERGE_KEY)
+  if (merge && !user.is_anonymous) {
+    forget(MERGE_KEY)
+    try {
+      const { data: res, error } = await sb.functions.invoke('merge-anonymous', {
+        body: { fromToken: merge.fromToken },
+      })
+      if (error) throw error
+      authNotice =
+        res?.moved > 0
+          ? `다시 만났어요. 이 기기에서 띄운 잔별 ${res.moved}개도 내 성단에 함께 담았어요.`
+          : '다시 만났어요. 다른 기기에서 지킨 성단을 그대로 불러왔어요.'
+    } catch (err) {
+      console.error('[잔별] 이 기기의 별을 옮기지 못했습니다.', err)
+      authNotice = '다른 기기에서 지킨 성단을 불러왔어요.'
+    }
+  }
+
   const { data: profile } = await sb
     .from('profiles')
     .select('name')

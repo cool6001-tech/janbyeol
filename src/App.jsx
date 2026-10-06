@@ -13,7 +13,7 @@ import { myConstellation, findKindred, shiningStars } from './lib/stats.js'
 import { buildGraph, buildOwnThreads, traceFrom, reachOf } from './lib/graph.js'
 import { distance, distanceToFit, cosmosDistance, FOCAL } from './lib/geometry.js'
 import { GALAXY_RADIUS } from './lib/galaxy.js'
-import { onboarding } from './lib/storage.js'
+import { onboarding, takeAuthNotice } from './lib/storage.js'
 
 /**
  * 하늘을 보는 두 가지 시점
@@ -181,7 +181,21 @@ export default function App() {
       }, 220)
     }
     window.addEventListener('resize', onResize)
+    /* 휴대폰 첫 진입 — 주소창·툴바가 자리를 잡기 전에 잰 화면 크기로 거리를 정하면
+       은하가 너무 크게 보입니다. resize 이벤트도 오지 않을 때가 있어서,
+       잠깐 뒤에 실제 크기가 처음과 달라졌는지 직접 확인하고 다시 맞춥니다. */
+    const first = { w: window.innerWidth, h: window.innerHeight }
+    const settle = [250, 700, 1500].map((ms) =>
+      setTimeout(() => {
+        if (window.innerWidth !== first.w || window.innerHeight !== first.h) {
+          first.w = window.innerWidth
+          first.h = window.innerHeight
+          onResize()
+        }
+      }, ms)
+    )
     return () => {
+      settle.forEach(clearTimeout)
       window.removeEventListener('resize', onResize)
       clearTimeout(timer)
     }
@@ -193,10 +207,32 @@ export default function App() {
     return () => clearTimeout(t)
   }, [])
 
-  const say = useCallback((message) => {
+  const say = useCallback((message, ms = 2400) => {
     setToast(message)
     clearTimeout(toastTimer.current)
-    toastTimer.current = setTimeout(() => setToast(''), 2400)
+    toastTimer.current = setTimeout(() => setToast(''), ms)
+  }, [])
+
+  /* 카카오/구글로 다른 기기의 성단을 불러온 직후 — 한 번만 알려줍니다 */
+  useEffect(() => {
+    if (!ready) return
+    const notice = takeAuthNotice()
+    if (notice) say(notice, 4200)
+  }, [ready, me.id, say])
+
+  /* 휴대폰에서 키보드가 닫힌 뒤 화면이 위로 밀린 채 남는 일을 막습니다.
+     (iOS 사파리는 입력창을 보이게 하려고 페이지를 올려놓고 되돌리지 않을 때가 있어요.
+      그러면 '나의 성단' 버튼이 상태표시줄·다이내믹 아일랜드 밑으로 들어가 눌리지 않습니다) */
+  useEffect(() => {
+    const onFocusOut = () => {
+      setTimeout(() => {
+        const el = document.activeElement
+        const typing = el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')
+        if (!typing && (window.scrollY || document.documentElement.scrollTop)) window.scrollTo(0, 0)
+      }, 80)
+    }
+    document.addEventListener('focusout', onFocusOut)
+    return () => document.removeEventListener('focusout', onFocusOut)
   }, [])
 
   /**

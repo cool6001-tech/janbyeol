@@ -104,6 +104,11 @@ export default function Account({ me, onNotice }) {
               <br />
               띄운 잔별은 하나도 잃지 않습니다.
             </p>
+            <p className="acctfine">
+              다른 기기에서 이미 지킨 성단이 있다면, 그때 쓴 버튼을 똑같이 누르세요.
+              <br />
+              원래 성단으로 들어가고, 이 기기에서 띄운 잔별도 함께 옮겨 담아요.
+            </p>
           </>
         ) : (
           <p className="acctnote">

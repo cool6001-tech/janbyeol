@@ -310,6 +310,9 @@ export default function Galaxy({
     }
 
     const frame = (now) => {
+      // 캔버스의 실제 크기가 바뀌었는데 resize 이벤트가 오지 않는 경우가 있습니다
+      // (휴대폰 첫 진입). 그대로 두면 별이 세로로 늘어나고 은하가 커 보여서, 매 프레임 확인합니다.
+      if (canvas.clientWidth !== width || canvas.clientHeight !== height) resize()
       const p = propsRef.current
       const t = (now - t0) / 1000
       const cam = scene.cam

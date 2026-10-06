@@ -99,6 +99,10 @@ export default function StarCard({
         <StarGuard star={star} onReport={onReport} onBlock={onBlock} onDone={onNotice} />
       )}
 
+      {/* 글과 온기·별빛을 한 스크롤에 담습니다.
+          예전엔 글(cardhead)이 줄어들지 않는 칸이라, 긴 글은 카드 높이를 넘는 만큼 잘려 보였어요.
+          이제는 얼마나 길게 썼든 카드 안에서 끝까지 내려 읽을 수 있습니다. */}
+      <div className="cardscroll" ref={bodyRef}>
       <div className={`cardhead${hasPhoto(star) ? ' haspic' : ''}`}>
         {photo && <div className="photo" style={{ backgroundImage: `url(${photo})` }} />}
         {shine && (
@@ -164,7 +168,7 @@ export default function StarCard({
             내 별에서는 아래 '별거 아니라 생각한 이 한 줄이, N명의 밤을 비췄어요' 한 줄이면 충분해요. */}
       </div>
 
-      <div className="cardbody" ref={bodyRef}>
+      <div className="cardbody">
         <div className="warmrow">
           <button className={`warmbtn${warmed ? ' on' : ''}`} onClick={() => onWarm(star.id)}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
@@ -226,6 +230,8 @@ export default function StarCard({
             ))
           )}
         </div>
+      </div>
+
       </div>
 
       {/* 별빛 이어가기 — 눈에 잘 띄지 않던 자리라, 작은 별 하나가 은은하게 반짝이며 부릅니다.

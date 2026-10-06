@@ -49,7 +49,16 @@ export default function ConstellationPanel({
       aria-label="나의 성단"
     >
       {/* 좁은 화면에서는 손잡이만 남기고 접힙니다 — 평소엔 하늘이 화면 전체 */}
-      <header className="panelhead">
+      {/* 접혀 있을 땐 손잡이뿐 아니라 제목 줄 어디를 눌러도 펼쳐집니다.
+          손잡이(38px)만 눌리던 때는 '나의 성단' 글자를 눌러도 반응이 없어 못 찾는 분이 많았어요. */}
+      <header
+        className="panelhead"
+        onClick={(e) => {
+          if (!sheet || open) return
+          if (e.target.closest('.grab, .close')) return
+          onToggle?.()
+        }}
+      >
         {sheet && (
           <button
             className="grab"
@@ -74,7 +83,7 @@ export default function ConstellationPanel({
           <h2>나의 성단</h2>
           <p>
             {sheet && !open
-              ? `잔별 ${count} · 온기 ${warmth} — 끌어올리면 회고`
+              ? `잔별 ${count} · 온기 ${warmth} — 눌러서 내 잔별 보기`
               : '지금 하늘에는 내가 띄운 잔별만 밝혀져 있어요'}
           </p>
         </div>
