@@ -159,13 +159,15 @@ export default function ConstellationPanel({
               </ul>
             </section>
 
-            <section className="block">
+            {/* 이 패널의 주인공 — 내가 띄운 잔별. 한 장 한 장 카드로, 내 별의 색(호박빛)으로 */}
+            <section className="block mystars">
               <h3>띄운 잔별</h3>
               <ul className="mylist">
                 {data.mine.slice(0, 12).map((s) => (
                   <li key={s.id}>
                     <button onClick={() => onSelectStar(s.id)}>
-                      <span>{s.text}</span>
+                      <i className="mylist-mark" aria-hidden="true" />
+                      <span className="mylist-text">{s.text}</span>
                       <em>{relativeWhen(s.createdAt)}</em>
                     </button>
                   </li>
@@ -200,11 +202,7 @@ export default function ConstellationPanel({
         {/* 맨 아래 — 내 기록을 다 돌아본 뒤에야 닿는 자리. 조용히, 그러나 편지처럼. */}
         {onContact && (
           <button className="contactinvite" type="button" onClick={onContact}>
-            <span className="contactinvite-mark" aria-hidden="true" />
-            <span className="contactinvite-text">
-              <b>잔별을 만든 사람에게 전하고 싶은 이야기가 있나요?</b>
-              <small>바라는 점, 함께하고 싶은 일, 무엇이든 편하게</small>
-            </span>
+            <span className="contactinvite-text">잔별을 만든 사람에게 전하고 싶은 이야기가 있나요?</span>
             <span className="contactinvite-go">메일 주소 보기</span>
           </button>
         )}

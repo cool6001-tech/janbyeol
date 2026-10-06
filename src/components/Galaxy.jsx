@@ -309,7 +309,19 @@ export default function Galaxy({
       return `rgba(${channel(r)},${channel(g)},${channel(b)},${alpha.toFixed(3)})`
     }
 
+    let skip = 0
     const frame = (now) => {
+      /* 글을 쓰는 동안에는 하늘을 세 프레임에 한 번만 그립니다 (초당 20장).
+         하늘은 천천히 도는 배경이라 티가 거의 안 나고, 그만큼 손이 비어서
+         자판을 누르는 대로 글자가 바로바로 찍힙니다. */
+      const el = document.activeElement
+      if (el && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT')) {
+        skip = (skip + 1) % 3
+        if (skip !== 0) {
+          raf = requestAnimationFrame(frame)
+          return
+        }
+      } else skip = 0
       // 캔버스의 실제 크기가 바뀌었는데 resize 이벤트가 오지 않는 경우가 있습니다
       // (휴대폰 첫 진입). 그대로 두면 별이 세로로 늘어나고 은하가 커 보여서, 매 프레임 확인합니다.
       if (canvas.clientWidth !== width || canvas.clientHeight !== height) resize()
@@ -424,17 +436,78 @@ export default function Galaxy({
         bucket.push(sx, sYy)
       }
 
-      const TINT = ['184,202,244', '255,236,206', '196,206,236'] // 팔 · 핵 · 헤일로
+      /* 배경 잔별 2만 개를 그리는 방법을 바꿨습니다.
+         예전엔 점 하나마다 fillRect 를 불러서 한 프레임에 그리기 명령이 2만 번 나갔고,
+         휴대폰에서는 이게 프레임을 통째로 잡아먹어 글자를 칠 때마다 입력이 늦게 따라왔어요.
+         이제는 점들을 메모리의 픽셀 판에 직접 더해 두었다가 **한 번에** 올립니다.
+         합성 방식이 'lighter'(빛을 더하기)라서, 미리 더해 두는 것과 결과가 같습니다. */
+      const TINT = [
+        [184, 202, 244],
+        [255, 236, 206],
+        [196, 206, 236],
+      ] // 팔 · 핵 · 헤일로
+      const W = Math.max(1, Math.ceil(width))
+      const H = Math.max(1, Math.ceil(height))
+      let pix = scene.ambientPix
+      if (!pix || pix.w !== W || pix.h !== H) {
+        const off = document.createElement('canvas')
+        off.width = W
+        off.height = H
+        const octx = off.getContext('2d')
+        pix = scene.ambientPix = {
+          w: W,
+          h: H,
+          off,
+          octx,
+          img: octx.createImageData(W, H),
+          acc: new Float32Array(W * H * 4), // 빛의 합 (r·a, g·a, b·a, a)
+          touched: new Int32Array(W * H),
+          nTouched: 0,
+        }
+      }
+      const acc = pix.acc
+      const data = pix.img.data
+      // 지난 프레임에 칠한 자리만 지웁니다 — 판 전체를 비우는 것보다 훨씬 쌉니다
+      for (let t = 0; t < pix.nTouched; t++) {
+        const q = pix.touched[t]
+        acc[q] = acc[q + 1] = acc[q + 2] = acc[q + 3] = 0
+        data[q] = data[q + 1] = data[q + 2] = data[q + 3] = 0
+      }
+      let nT = 0
       for (let kind = 0; kind < 3; kind++) {
+        const [tr, tg, tb] = TINT[kind]
         for (let level = 0; level < LEVELS; level++) {
           const bucket = buckets[kind * LEVELS + level]
           if (bucket.length === 0) continue
-          ctx.fillStyle = `rgba(${TINT[kind]},${(((level + 0.75) / LEVELS) * 0.9 * aDim).toFixed(3)})`
+          const a = ((level + 0.75) / LEVELS) * 0.9 * aDim
           for (let i = 0; i < bucket.length; i += 2) {
-            ctx.fillRect(bucket[i], bucket[i + 1], 1, 1)
+            const px = bucket[i] | 0
+            const py = bucket[i + 1] | 0
+            if (px >= W || py >= H) continue
+            const q = (py * W + px) * 4
+            if (acc[q + 3] === 0) pix.touched[nT++] = q
+            acc[q] += tr * a
+            acc[q + 1] += tg * a
+            acc[q + 2] += tb * a
+            acc[q + 3] += a
           }
         }
       }
+      for (let t = 0; t < nT; t++) {
+        const q = pix.touched[t]
+        const al = acc[q + 3]
+        const A = al > 1 ? 1 : al
+        // 미리 곱한 빛(r·a)을 다시 나눠 ImageData 형식으로 — 결과는 fillRect 를 겹쳐 그린 것과 같습니다
+        data[q] = acc[q] / A > 255 ? 255 : acc[q] / A
+        data[q + 1] = acc[q + 1] / A > 255 ? 255 : acc[q + 1] / A
+        data[q + 2] = acc[q + 2] / A > 255 ? 255 : acc[q + 2] / A
+        data[q + 3] = A * 255
+      }
+      pix.nTouched = nT
+      pix.octx.putImageData(pix.img, 0, 0)
+      ctx.imageSmoothingEnabled = false
+      ctx.drawImage(pix.off, 0, 0, W, H)
+      ctx.imageSmoothingEnabled = true
 
       /* 별의 현재 위치를 먼저 정리한다.
          고른 잔별이 있으면, 닿아 있는 잔별들이 그 별 곁의 궤도로 끌려옵니다.
