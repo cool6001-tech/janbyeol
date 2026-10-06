@@ -39,9 +39,22 @@ psql -p 5433 -U postgres -f supabase/tests/01-rls.test.sql
 | 4 | 신고 3건이면 자동으로 가려지는가 | t |
 | 5 | 주인이 자기 별을 몰래 되살릴 수 있는가 | t (그대로 가려짐) |
 | 6 | 온기 숫자를 직접 써넣을 수 있는가 | 5 (조작 무시됨) |
-| 7 | 본문은 고쳐지는가 | 가의 고친 하루 |
+| 7 | 본문을 고칠 수 있는가 | 가의 고친 하루 (security-hardening.sql 적용 후에는 권한 오류 · 가의 하루) |
 | 8 | 남의 본문을 고칠 수 있는가 | 다의 하루 (그대로) |
 | 9 | 차단하면 그 사람 별이 사라지는가 | 1 → 0 |
 | 10 | 신고 기록이 남에게 보이는가 | 0 |
 
 하나라도 다르면 `schema.sql` 이 부분적으로만 올라간 것입니다.
+
+## 보안 보강 검사 (security-hardening.sql)
+
+```bash
+psql -p 5433 -U postgres -c 'create database h2'
+psql -p 5433 -U postgres -d h2 -f supabase/tests/00-supabase-stub.sql
+psql -p 5433 -U postgres -d h2 -f supabase/schema.sql
+psql -p 5433 -U postgres -d h2 -f supabase/tests/00b-supabase-roles.sql   # anon·authenticated·service_role 흉내
+psql -p 5433 -U postgres -d h2 -f supabase/security-hardening.sql
+psql -p 5433 -U postgres -d h2 -f supabase/tests/02-hardening.test.sql
+```
+
+H1~H18 각 줄의 괄호 안 값이 기대값입니다. "오류가 나야 정상"이라고 적힌 줄은 실제로 ERROR 가 찍혀야 합니다.

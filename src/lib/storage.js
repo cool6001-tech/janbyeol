@@ -303,7 +303,7 @@ export const storage = {
       .insert({
         id: star.id,
         author_id: cachedUser.id,
-        author_name: cachedUser.name,
+        // author_name 은 보내지 않습니다 — 서버가 내 프로필 이름으로 채웁니다 (사칭 방지)
         text: star.text,
         tags: star.tags,
         emotion: emotionOf(star), // 인스타 카드와 색이 여기서 정해집니다
@@ -311,7 +311,7 @@ export const storage = {
         photo_seed: star.photoSeed,
         pos: star.pos,
         pos_v: star.posV,
-        seeded: false,
+        // seeded · warmth 같은 칸도 보내지 않습니다 — 서버만 정할 수 있는 값입니다
         // 글쓴이가 '소개해도 좋아요'를 직접 체크했을 때만 true
         allow_feature: star.allowFeature === true,
       })
@@ -462,18 +462,43 @@ function photoPathOf(publicUrl) {
 --------------------------------------------------------------- */
 async function uploadPhoto(dataUrl, starId) {
   try {
-    const blob = await (await fetch(dataUrl)).blob()
-    const ext = blob.type.split('/')[1] || 'jpg'
-    const path = `${cachedUser.id}/${starId}.${ext}`
+    const blob = await shrinkPhoto(dataUrl)
+    const path = `${cachedUser.id}/${starId}.jpg`
     const { error } = await sb.storage
       .from(PHOTO_BUCKET)
-      .upload(path, blob, { contentType: blob.type, upsert: true })
+      .upload(path, blob, { contentType: 'image/jpeg', upsert: true })
     if (error) throw error
     return sb.storage.from(PHOTO_BUCKET).getPublicUrl(path).data.publicUrl
   } catch (err) {
     console.error('[잔별] 사진을 올리지 못했습니다. 글만 올립니다.', err)
     return null
   }
+}
+
+/**
+ * 올리기 전에 사진을 다시 그립니다 — 긴 변 1600px, JPEG.
+ *
+ * 크기를 줄이는 것보다 더 중요한 이유가 있어요. 휴대폰 사진 원본에는
+ * **찍은 장소의 GPS 좌표**와 기기 정보(EXIF)가 들어 있습니다. 사진 저장소는 공개라서
+ * 원본을 그대로 올리면 누구나 그 좌표를 읽을 수 있어요. 캔버스에 다시 그리면
+ * 픽셀만 남고 그런 정보는 모두 떨어져 나갑니다.
+ */
+function shrinkPhoto(dataUrl, maxSide = 1600, quality = 0.85) {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => {
+      const scale = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight))
+      const w = Math.max(1, Math.round(img.naturalWidth * scale))
+      const h = Math.max(1, Math.round(img.naturalHeight * scale))
+      const canvas = document.createElement('canvas')
+      canvas.width = w
+      canvas.height = h
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h)
+      canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('사진을 줄이지 못했습니다'))), 'image/jpeg', quality)
+    }
+    img.onerror = () => reject(new Error('사진을 읽지 못했습니다'))
+    img.src = dataUrl
+  })
 }
 
 /* ---------------------------------------------------------------

@@ -51,8 +51,7 @@ export async function rename(name) {
   const clean = name.trim().slice(0, 20) || '나'
   const { error } = await sb.from('profiles').update({ name: clean }).eq('id', me.id)
   if (error) throw error
-  // 이미 띄운 별들의 표시 이름도 함께 (내 별만 — RLS가 막아줍니다)
-  await sb.from('stars').update({ author_name: clean }).eq('author_id', me.id)
+  // 이미 띄운 별들의 작성자 이름은 서버(profiles_name_sync 트리거)가 맞춰 둡니다
   me.name = clean // 이후에 띄우는 별에도 이 이름이 붙도록
   return clean
 }

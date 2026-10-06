@@ -48,7 +48,7 @@ set request.jwt.claim.sub = '11111111-1111-1111-1111-111111111111';
 update stars set warmth = 9999, seed_warmth = 9999 where id='s-a';
 select warmth as "조작 시도 후 s-a 온기" from stars where id='s-a';
 
-\echo '--- 7) 본문은 정상적으로 고쳐지는가 (이건 되어야 정상) ---'
+\echo '--- 7) 띄운 뒤 본문을 고칠 수 있는가 — security-hardening.sql 적용 후에는 그대로(가의 하루)여야 정상 ---'
 update stars set text = '가의 고친 하루' where id='s-a';
 select text as "s-a 본문" from stars where id='s-a';
 

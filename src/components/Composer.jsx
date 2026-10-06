@@ -37,10 +37,14 @@ export default function Composer({ onSubmit, onFocus, compact = false }) {
     reader.readAsDataURL(file)
   }
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault()
     if (!text.trim()) return
-    onSubmit({ text, photo, allowFeature })
+    try {
+      await onSubmit({ text, photo, allowFeature })
+    } catch {
+      return // 띄우지 못했으면 쓴 글은 그대로 둡니다
+    }
     setText('')
     setPhoto(null)
     setAllowFeature(false) // 다음 글은 다시 처음부터 묻습니다

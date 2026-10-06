@@ -568,12 +568,21 @@ export default function App() {
   /* ---------- 잔별 ---------- */
 
   const handleCreate = useCallback(
-    async ({ text, photo }) => {
+    async ({ text, photo, allowFeature }) => {
       setWelcomeGone(true)
       setMineMode(false)
       setSelectedId(null)
       setCardOpen(false)
-      const star = await addStar({ text, photo })
+      let star
+      try {
+        // allowFeature 를 함께 넘깁니다 — 예전엔 여기서 빠져서, 쓸 때 체크한 '소개 동의'가 저장되지 않았어요
+        star = await addStar({ text, photo, allowFeature })
+      } catch (err) {
+        // 서버가 막은 이유(도배 제한 등)가 있으면 그대로 보여줍니다
+        const msg = err?.message && /[가-힣]/.test(err.message) ? err.message : '지금은 띄우지 못했어요. 잠시 뒤에 다시 해주세요.'
+        say(msg, 3600)
+        throw err // 입력창이 글을 지우지 않도록
+      }
       const similar = findKindred(stars, star, 5)
       setKindred({ anchorId: star.id, ids: similar.map((s) => s.id) })
       lookAt(star, { scale: 1, dist: fitDistance(ORBIT_FAR * 1.2), pitch: 0.7, hold: 5200 })
