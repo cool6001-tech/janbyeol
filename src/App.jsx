@@ -232,7 +232,20 @@ export default function App() {
       }, 80)
     }
     document.addEventListener('focusout', onFocusOut)
-    return () => document.removeEventListener('focusout', onFocusOut)
+    // 키보드가 닫히며 보이는 영역이 바뀔 때도 한 번 더 제자리로 (아이폰은 scrollY 가 0이어도 밀려 있을 때가 있어요)
+    const vv = window.visualViewport
+    const onViewport = () => {
+      const el = document.activeElement
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) return
+      if ((vv && vv.offsetTop > 0) || window.scrollY) window.scrollTo(0, 0)
+    }
+    vv?.addEventListener('resize', onViewport)
+    vv?.addEventListener('scroll', onViewport)
+    return () => {
+      document.removeEventListener('focusout', onFocusOut)
+      vv?.removeEventListener('resize', onViewport)
+      vv?.removeEventListener('scroll', onViewport)
+    }
   }, [])
 
   /**
