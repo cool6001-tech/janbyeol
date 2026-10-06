@@ -829,7 +829,9 @@ export default function App() {
 
         <div className="bottom">
           <p className="creed">
-            별거 아닌 줄 알았던 당신의 오늘이, 이곳에선 누군가의 밤을 비추는 잔별이 됩니다.
+            별거 아닌 줄 알았던 당신의 오늘이,
+            <br />
+            이곳에선 누군가의 밤을 비추는 잔별이 됩니다.
           </p>
           <Composer onSubmit={handleCreate} onFocus={() => setWelcomeGone(true)} compact={isNarrow} />
         </div>
