@@ -20,12 +20,13 @@ import { storage } from '../lib/storage.js'
  * 매번 눈에 먼저 들어올 이유가 없습니다. 찾을 수 있으면 충분해요.
  */
 export default function Account({ me, onNotice }) {
-  const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState(me.name || '나')
+  // 이름은 한 번 정하면 끝 — 정한 뒤에는 이 자리에서 다시 묻지 않습니다
+  const [name, setName] = useState(me.name || '나')
+  const [draft, setDraft] = useState('')
   const [blocked, setBlocked] = useState([])
 
   useEffect(() => {
-    setDraft(me.name || '나')
+    setName(me.name || '나')
   }, [me.name])
 
   useEffect(() => {
@@ -34,12 +35,13 @@ export default function Account({ me, onNotice }) {
 
   const saveName = async (e) => {
     e.preventDefault()
+    if (!draft.trim()) return
     try {
-      const name = await rename(draft)
-      setEditing(false)
-      onNotice?.(`이제 ${name}(으)로 불릴게요`)
+      const saved = await rename(draft)
+      setName(saved)
+      onNotice?.(`이제 ‘${saved}’의 성단이에요`)
     } catch {
-      onNotice?.('이름을 바꾸지 못했어요')
+      onNotice?.('이름을 정하지 못했어요. 잠시 뒤에 다시 해주세요.')
     }
   }
 
@@ -58,38 +60,41 @@ export default function Account({ me, onNotice }) {
   }
 
   const anonymous = me.isAnonymous !== false
+  const named = Boolean(name) && name !== '나'
+
+  /* 보여줄 것이 남았을 때만 상자를 띄웁니다.
+     이름도 정했고 카카오/구글로도 이어졌다면, 이 상자는 할 일을 다 한 거예요. */
+  if (named && !anonymous && blocked.length === 0) return null
 
   return (
     <section className="account">
       <span className="account-mark" aria-hidden="true" />
 
       <div className="account-body">
-        <h3>이 성단을 지키는 일</h3>
-
-        {/* 이름 */}
-        {editing ? (
-          <form className="acctname" onSubmit={saveName}>
-            <input
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              maxLength={20}
-              aria-label="불릴 이름"
-              autoFocus
-            />
-            <button type="submit">저장</button>
+        {/* 이름 — 정하기 전까지만. 별빛을 이을 때 다른 사람에게 이 이름으로 보입니다 */}
+        {!named && (
+          <form className="acctnameask" onSubmit={saveName}>
+            <h3>내 성단에 이름을 지어주세요</h3>
+            <p className="acctfine">별빛을 이을 때 이 이름으로 보여요.</p>
+            <div className="acctname">
+              <input
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                maxLength={20}
+                placeholder="예: 쿠리"
+                aria-label="성단 이름"
+              />
+              <button type="submit" disabled={!draft.trim()}>
+                정하기
+              </button>
+            </div>
           </form>
-        ) : (
-          <p className="acctline">
-            지금은 <b>{me.name || '나'}</b>로 불리고 있어요.
-            <button className="acctlink" onClick={() => setEditing(true)}>
-              바꾸기
-            </button>
-          </p>
         )}
 
-        {/* 익명이면 — 잃을 수 있다는 사실부터 */}
-        {anonymous ? (
-          <>
+        {/* 아직 이 브라우저에만 있는 성단 — 잃을 수 있다는 사실과 지키는 길 */}
+        {anonymous && (
+          <div className="acctkeepwrap">
+            <h3>이 성단을 지키는 일</h3>
             <p className="acctnote">
               지금 이 성단은 이 브라우저에만 있어요.
               <br />
@@ -100,20 +105,11 @@ export default function Account({ me, onNotice }) {
               <button onClick={() => keep('google')}>구글로 지키기</button>
             </div>
             <p className="acctfine">
-              새 계정을 만드는 게 아니라, 지금 성단에 이어 붙이는 거예요.
-              <br />
-              띄운 잔별은 하나도 잃지 않습니다.
-            </p>
-            <p className="acctfine">
-              다른 기기에서 이미 지킨 성단이 있다면, 그때 쓴 버튼을 똑같이 누르세요.
+              다른 기기에서 이미 지킨 성단이 있다면 같은 버튼을 누르세요.
               <br />
               원래 성단으로 들어가고, 이 기기에서 띄운 잔별도 함께 옮겨 담아요.
             </p>
-          </>
-        ) : (
-          <p className="acctnote">
-            이 성단은 안전하게 이어져 있어요. 다른 기기에서도 그대로 열립니다.
-          </p>
+          </div>
         )}
 
         {/* 그만 보기로 한 사람들 */}

@@ -53,6 +53,7 @@ export async function rename(name) {
   if (error) throw error
   // 이미 띄운 별들의 표시 이름도 함께 (내 별만 — RLS가 막아줍니다)
   await sb.from('stars').update({ author_name: clean }).eq('author_id', me.id)
+  me.name = clean // 이후에 띄우는 별에도 이 이름이 붙도록
   return clean
 }
 

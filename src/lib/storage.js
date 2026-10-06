@@ -238,6 +238,11 @@ function toStar(row, myWarmed, repliesByStar) {
   }
 }
 
+/** 남에게 보일 이름 — 기본값 '나'는 내 화면에서만 맞는 말이라 '어떤 사람'으로 */
+function nameOf(name) {
+  return name && name !== '나' ? name : '어떤 사람'
+}
+
 export const storage = {
   /**
    * 모두의 하늘.
@@ -270,7 +275,8 @@ export const storage = {
       const list = repliesByStar.get(r.star_id) || []
       list.push({
         id: r.id,
-        who: r.author_id === cachedUser.id ? '나' : r.profiles?.name || '어떤 사람',
+        // 이름을 아직 정하지 않은 사람('나')은 남에게 '어떤 사람'으로 보입니다
+        who: r.author_id === cachedUser.id ? '나' : nameOf(r.profiles?.name),
         text: r.text,
         createdAt: r.created_at,
       })
@@ -399,7 +405,7 @@ export const storage = {
       .from('blocks')
       .select('blocked_id, profiles!blocks_blocked_id_fkey(name)')
       .eq('blocker_id', cachedUser.id)
-    return (data || []).map((b) => ({ id: b.blocked_id, name: b.profiles?.name || '어떤 사람' }))
+    return (data || []).map((b) => ({ id: b.blocked_id, name: nameOf(b.profiles?.name) }))
   },
 
   /**

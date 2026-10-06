@@ -3206,3 +3206,18 @@ ul {
     animation: none;
   }
 }
+
+/* 이름 정하기 · 성단 지키기 — 상자 안의 작은 묶음 */
+.acctnameask,
+.acctkeepwrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.acctname button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.acctnameask + .acctkeepwrap {
+  margin-top: 14px;
+}
