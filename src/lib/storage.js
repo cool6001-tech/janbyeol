@@ -361,7 +361,39 @@ export const storage = {
     return { id: data.id, who: '나', text: data.text, createdAt: data.created_at }
   },
 
-  /** 소개 동의 바꾸기 — 나의 성단에서 언제든 철회할 수 있어야 합니다 */
+  /**
+   * 공식 계정 소개 — '앞으로 띄울 잔별' 전체에 대한 한 번의 선택
+   * 처음 잔별을 띄울 때 한 번만 묻고, 그 답을 계정(user_metadata)에 적어 둡니다.
+   * 다른 사람은 볼 수 없는 자리라, 동의 여부가 남에게 드러나지 않습니다.
+   *   true  — 앞으로 띄우는 잔별은 소개해도 좋아요
+   *   false — 소개하지 말아 주세요
+   *   null  — 아직 묻지 않았어요
+   */
+  async getFeaturePref() {
+    await ensureUser()
+    const { data } = await sb.auth.getSession()
+    const v = data.session?.user?.user_metadata?.feature_ok
+    return typeof v === 'boolean' ? v : null
+  },
+
+  /** 한 번의 선택을 바꿉니다. 끄면 지금까지 허락한 잔별도 모두 거둡니다 (약관 제9조) */
+  async setFeaturePref(on) {
+    await ensureUser()
+    const { error } = await sb.auth.updateUser({
+      data: { feature_ok: on, feature_ok_at: new Date().toISOString() },
+    })
+    if (error) throw error
+    if (!on) {
+      const { error: e2 } = await sb
+        .from('stars')
+        .update({ allow_feature: false })
+        .eq('author_id', cachedUser.id)
+        .eq('allow_feature', true)
+      if (e2) throw e2
+    }
+  },
+
+  /** 잔별 하나의 소개 허락 바꾸기 — 카드에서 이 별만 거둘 때 */
   async setAllowFeature(starId, on) {
     await ensureUser()
     const { error } = await sb

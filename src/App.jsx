@@ -7,6 +7,8 @@ import Welcome from './components/Welcome.jsx'
 import Toast from './components/Toast.jsx'
 import ConstellationPanel from './components/ConstellationPanel.jsx'
 import Tutorial from './components/Tutorial.jsx'
+import IntroVideo from './components/IntroVideo.jsx'
+import TermsNotice from './components/TermsNotice.jsx'
 import { ContactSheet } from './components/Contact.jsx'
 import { useJanbyeol } from './hooks/useJanbyeol.js'
 import { myConstellation, findKindred, shiningStars } from './lib/stats.js'
@@ -79,6 +81,19 @@ function shouldTour() {
   return !onboarding.seen()
 }
 
+/**
+ * 1분 소개 영상을 보여줄까.
+ * 처음 온 사람(안내를 아직 안 본 사람)에게만. `?intro`를 붙이면 언제든 다시 볼 수 있어요.
+ */
+function shouldIntro() {
+  try {
+    if (new URLSearchParams(window.location.search).has('intro')) return true
+  } catch {
+    /* 무시 */
+  }
+  return shouldTour()
+}
+
 /** 안내가 보여줄 '누군가의 별' — 남이 쓴 잔별 중 이야기가 가장 많이 닿아 있는 것 */
 function pickDemoStar(stars, graph, myId) {
   let best = null
@@ -111,6 +126,8 @@ export default function App() {
     report,
     block,
     setAllowFeature,
+    featurePref,
+    setFeaturePref,
     read,
     readMap,
     markRead,
@@ -129,6 +146,8 @@ export default function App() {
   const [isNarrow, setIsNarrow] = useState(() => window.innerWidth <= 860)
   const [panelOpen, setPanelOpen] = useState(true) // 모바일 바텀시트가 펼쳐져 있는가
   const [tourOpen, setTourOpen] = useState(shouldTour) // 처음 온 사람에게만
+  // 처음 온 사람은 1분 소개 영상부터 — 끝나거나 건너뛰면 안내로 이어집니다
+  const [introOpen, setIntroOpen] = useState(shouldIntro)
   const [tourStep, setTourStep] = useState(null) // 안내가 지금 보여주는 장면
   const [tourInset, setTourInset] = useState(0) // 안내 카드가 아래를 가리는 높이
   const [contactOpen, setContactOpen] = useState(false) // 만든 사람에게 — 메일 주소 카드
@@ -568,7 +587,7 @@ export default function App() {
   /* ---------- 잔별 ---------- */
 
   const handleCreate = useCallback(
-    async ({ text, photo, allowFeature }) => {
+    async ({ text, photo, allowFeature, firstChoice }) => {
       setWelcomeGone(true)
       setMineMode(false)
       setSelectedId(null)
@@ -577,6 +596,8 @@ export default function App() {
       try {
         // allowFeature 를 함께 넘깁니다 — 예전엔 여기서 빠져서, 쓸 때 체크한 '소개 동의'가 저장되지 않았어요
         star = await addStar({ text, photo, allowFeature })
+        // 처음 띄우는 잔별 — 그때 고른 답을 '앞으로의 선택'으로 기억합니다 (다시 묻지 않도록)
+        if (firstChoice !== undefined) setFeaturePref(firstChoice).catch(() => {})
       } catch (err) {
         // 서버가 막은 이유(도배 제한 등)가 있으면 그대로 보여줍니다
         const msg = err?.message && /[가-힣]/.test(err.message) ? err.message : '지금은 띄우지 못했어요. 잠시 뒤에 다시 해주세요.'
@@ -592,7 +613,7 @@ export default function App() {
         setCardOpen(true)
       }, 950)
     },
-    [addStar, stars, lookAt, say, fitDistance]
+    [addStar, stars, lookAt, say, fitDistance, setFeaturePref]
   )
 
   const handleWarm = useCallback(
@@ -825,6 +846,10 @@ export default function App() {
           onToggleMine={toggleMine}
           onCosmos={backToCosmos}
           onHelp={openTour}
+          onIntro={() => {
+            setWelcomeGone(true)
+            setIntroOpen(true)
+          }}
           onMenuOpen={() => setWelcomeGone(true)} // 메뉴와 첫 문구가 겹치지 않게
         />
 
@@ -847,15 +872,21 @@ export default function App() {
           </button>
         )}
 
-        {!welcomeGone && ready && !tourOpen && <Welcome gone={welcomeGone} layout={welcomeLayout} />}
+        {!welcomeGone && ready && !tourOpen && !introOpen && <Welcome gone={welcomeGone} layout={welcomeLayout} />}
 
         <div className="bottom">
+          {ready && !tourOpen && !introOpen && <TermsNotice />}
           <p className="creed">
             별거 아닌 줄 알았던 당신의 오늘이,
             <br />
             이곳에선 누군가의 밤을 비추는 잔별이 됩니다.
           </p>
-          <Composer onSubmit={handleCreate} onFocus={() => setWelcomeGone(true)} compact={isNarrow} />
+          <Composer
+            onSubmit={handleCreate}
+            onFocus={() => setWelcomeGone(true)}
+            compact={isNarrow}
+            featurePref={featurePref}
+          />
         </div>
       </div>
 
@@ -895,6 +926,8 @@ export default function App() {
           onContact={() => setContactOpen(true)}
           me={me}
           onNotice={say}
+          featurePref={featurePref}
+          onFeaturePref={setFeaturePref}
           onClearRoad={() => {
             clearRead()
             setReReading(null)
@@ -907,7 +940,9 @@ export default function App() {
 
       {contactOpen && <ContactSheet onClose={closeContact} />}
 
-      {tourOpen && ready && (
+      {introOpen && <IntroVideo onDone={() => setIntroOpen(false)} />}
+
+      {tourOpen && ready && !introOpen && (
         <Tutorial
           narrow={isNarrow}
           reducedMotion={reducedMotion}

@@ -9,7 +9,7 @@ import { ContactMail } from './Contact.jsx'
  *   · 안내 다시 보기
  *   · 잔별을 만든 사람에게 → 같은 자리에서 메일 주소로 바뀝니다
  */
-export default function TopBar({ clusterCount, mineMode, onToggleMine, onCosmos, onHelp, onMenuOpen }) {
+export default function TopBar({ clusterCount, mineMode, onToggleMine, onCosmos, onHelp, onIntro, onMenuOpen }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [view, setView] = useState('menu') // 'menu' | 'mail'
   const wrapRef = useRef(null)
@@ -89,6 +89,23 @@ export default function TopBar({ clusterCount, mineMode, onToggleMine, onCosmos,
                       <small>처음 온 것처럼 잔별을 둘러봐요</small>
                     </span>
                   </button>
+                  {onIntro && (
+                    <button
+                      className="helpitem"
+                      role="menuitem"
+                      type="button"
+                      onClick={() => {
+                        closeMenu()
+                        onIntro()
+                      }}
+                    >
+                      <i className="hi-dot cool" aria-hidden="true" />
+                      <span>
+                        <b>1분 소개 영상</b>
+                        <small>잔별이 어떤 곳인지 영상으로 봐요</small>
+                      </span>
+                    </button>
+                  )}
                   <div className="helpsep" aria-hidden="true" />
                   <button className="helpitem" role="menuitem" type="button" onClick={() => setView('mail')}>
                     <i className="hi-dot warm" aria-hidden="true" />

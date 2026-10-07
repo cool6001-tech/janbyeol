@@ -4,6 +4,7 @@ import { photoOf, hasPhoto } from '../lib/photo.js'
 import { relativeWhen, readWhen, isAnniversary, yearsAgo } from '../lib/time.js'
 import { emotionOf, EMOTION_COLORS, cssColor } from '../lib/emotionColor.js'
 import StarGuard from './StarGuard.jsx'
+import { isFeatureOnce } from '../lib/policy.js'
 
 /** 빈 줄로 나뉜 문단들 — 한 줄짜리 줄바꿈은 문단 안에 그대로 남습니다 */
 function paragraphsOf(text = '') {
@@ -186,13 +187,17 @@ export default function StarCard({
 
       <div className="cardbody">
         <div className="warmrow">
-          <button className={`warmbtn${warmed ? ' on' : ''}`} onClick={() => onWarm(star.id)}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-              <path d="M12 3c2.5 3.2 1 4.8 0 6-1.4 1.7-2.6 3-2.6 5A4.6 4.6 0 0 0 12 19a4.6 4.6 0 0 0 4.6-5c0-1.5-.8-2.6-1.6-3.6" />
-            </svg>
-            온기 더하기
-          </button>
-          <span className="count">온기 {star.warmth || 0}</span>
+          {/* 온기는 남이 건네는 것 — 내 별에는 버튼 없이 받은 온기만 보여줍니다.
+              내가 내 별에 온기를 더하면 '몇 명의 밤을 비췄어요'가 거짓말이 되니까요. */}
+          {!mine && (
+            <button className={`warmbtn${warmed ? ' on' : ''}`} onClick={() => onWarm(star.id)}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                <path d="M12 3c2.5 3.2 1 4.8 0 6-1.4 1.7-2.6 3-2.6 5A4.6 4.6 0 0 0 12 19a4.6 4.6 0 0 0 4.6-5c0-1.5-.8-2.6-1.6-3.6" />
+              </svg>
+              온기 더하기
+            </button>
+          )}
+          <span className="count">{mine ? '받은 온기' : '온기'} {star.warmth || 0}</span>
           <button className="sharebtn" onClick={share} aria-label="이 잔별 보내기">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 15V4m0 0L8.5 7.5M12 4l3.5 3.5" />
@@ -208,19 +213,33 @@ export default function StarCard({
           </p>
         )}
 
-        {/* 내 잔별에만 — 소개 허락은 언제든 거둘 수 있어야 합니다 */}
-        {mine && onAllowFeature && (
+        {/* 소개를 허락한 내 잔별에만 — 이 별 하나만 골라 거둘 수 있게 조용한 한 줄을 둡니다.
+            허락은 처음 띄울 때 한 번 묻고, 전체 선택은 나의 성단에서 바꿉니다 (약관 제9조). */}
+        {mine && onAllowFeature && star.allowFeature === true && (
+          <p className="featureon">
+            <span>공식 계정에 소개될 수 있는 잔별이에요</span>
+            <button
+              type="button"
+              onClick={() => {
+                onAllowFeature(star.id, false)
+                onNotice?.('이 잔별의 소개 허락을 거뒀어요')
+              }}
+            >
+              이 별만 거두기
+            </button>
+          </p>
+        )}
+
+        {/* 10월 14일 전까지는 예전처럼, 아직 허락하지 않은 내 잔별에서도 허락할 수 있게 */}
+        {mine && onAllowFeature && star.allowFeature !== true && !isFeatureOnce() && (
           <label className="featuretoggle">
             <input
               type="checkbox"
-              checked={star.allowFeature === true}
+              checked={false}
               onChange={(e) => {
-                onAllowFeature(star.id, e.target.checked)
-                onNotice?.(
-                  e.target.checked
-                    ? '이 잔별은 공식 계정에 소개될 수 있어요'
-                    : '소개 허락을 거뒀어요'
-                )
+                if (!e.target.checked) return
+                onAllowFeature(star.id, true)
+                onNotice?.('이 잔별은 공식 계정에 소개될 수 있어요')
               }}
             />
             <span>잔별 공식 계정에 소개되어도 좋아요</span>

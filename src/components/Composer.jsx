@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { isFeatureOnce } from '../lib/policy.js'
 
 /**
  * 잔별 띄우기 — 나의 이야기와 사진 한 장
@@ -9,14 +10,19 @@ import { useRef, useState } from 'react'
  * 좁은 화면에서는 평소에 한 줄로 접혀 있다가, 쓰기 시작하면 펼쳐집니다.
  * 입력창이 늘 150px를 차지하면 정작 봐야 할 하늘이 그만큼 줄어드니까요.
  */
-export default function Composer({ onSubmit, onFocus, compact = false }) {
+export default function Composer({ onSubmit, onFocus, compact = false, featurePref }) {
   const [text, setText] = useState('')
   const [photo, setPhoto] = useState(null)
   const [typing, setTyping] = useState(false)
-  // 공식 계정에 소개해도 되는 글인지. **기본은 꺼짐입니다.**
+  // 공식 계정 소개 — **처음 띄울 때 한 번만** 묻습니다. 기본은 꺼짐입니다.
   // 약관 한 줄로 갈음하지 않는 이유는, 사적인 글을 다루는 서비스에서
   // "동의한 줄 몰랐는데 내 글이 올라갔다"는 사고가 한 번이면 끝이기 때문입니다.
+  // 한 번 답하면 다음부터는 묻지 않고, 나의 성단에서 언제든 바꿀 수 있어요.
   const [allowFeature, setAllowFeature] = useState(false)
+  // 10월 14일(약관 변경 적용일) 전에는 예전처럼 글마다 묻습니다
+  const onceMode = isFeatureOnce()
+  const askOnce = onceMode && featurePref === null // 아직 한 번도 답하지 않은 사람
+  const askEach = !onceMode
   const fileRef = useRef(null)
   const areaRef = useRef(null)
 
@@ -41,13 +47,19 @@ export default function Composer({ onSubmit, onFocus, compact = false }) {
     e.preventDefault()
     if (!text.trim()) return
     try {
-      await onSubmit({ text, photo, allowFeature })
+      await onSubmit({
+        text,
+        photo,
+        // 이미 답한 사람은 그 답대로, 처음인 사람은 지금 고른 대로
+        allowFeature: askOnce || askEach ? allowFeature : featurePref === true,
+        firstChoice: askOnce ? allowFeature : undefined,
+      })
     } catch {
       return // 띄우지 못했으면 쓴 글은 그대로 둡니다
     }
     setText('')
     setPhoto(null)
-    setAllowFeature(false) // 다음 글은 다시 처음부터 묻습니다
+    setAllowFeature(false)
     setTyping(false)
     if (fileRef.current) fileRef.current.value = ''
     if (areaRef.current) {
@@ -116,9 +128,10 @@ export default function Composer({ onSubmit, onFocus, compact = false }) {
         </button>
       </div>
 
-      {/* 쓰기 시작한 사람에게만 보입니다. 빈 입력창 옆에 약관 문구가 붙어 있으면
-          첫인상이 계약서가 되니까요. */}
-      {!folded && (text.trim() || photo) && (
+      {/* 처음 잔별을 띄우는 사람에게, 쓰기 시작했을 때 한 번만 보입니다.
+          빈 입력창 옆에 약관 문구가 붙어 있으면 첫인상이 계약서가 되고,
+          글을 쓸 때마다 같은 체크박스가 뜨면 그건 노이즈가 되니까요. */}
+      {(askOnce || askEach) && !folded && (text.trim() || photo) && (
         <div className="consent">
           <label className="consent-pick">
             <input
@@ -127,8 +140,19 @@ export default function Composer({ onSubmit, onFocus, compact = false }) {
               onChange={(e) => setAllowFeature(e.target.checked)}
             />
             <span>
-              이 잔별은 <b>잔별 공식 계정에 소개</b>되어도 좋아요
-              <small>이름 없이 글과 온기 수만 실립니다. 나중에 언제든 거둘 수 있어요.</small>
+              {askOnce ? (
+                <>
+                  앞으로 띄우는 내 잔별을 <b>잔별 공식 계정에 소개</b>해도 좋아요
+                  <small>
+                    이번 한 번만 물어요. 이름 없이 글과 온기 수만 실리고, 나의 성단에서 언제든 바꾸거나 거둘 수 있어요.
+                  </small>
+                </>
+              ) : (
+                <>
+                  이 잔별은 <b>잔별 공식 계정에 소개</b>되어도 좋아요
+                  <small>이름 없이 글과 온기 수만 실립니다. 나중에 언제든 거둘 수 있어요.</small>
+                </>
+              )}
             </span>
           </label>
           <p className="consent-note">

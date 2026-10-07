@@ -21,6 +21,8 @@ export function useJanbyeol() {
   const [ready, setReady] = useState(false)
   const [read, setRead] = useState([]) // 읽은 순서대로 — 별길의 재료
   const [trouble, setTrouble] = useState(false) // 하늘에 닿지 못했는가
+  // 공식 계정 소개에 대한 한 번의 선택 — undefined: 불러오는 중, null: 아직 묻지 않음
+  const [featurePref, setFeaturePrefState] = useState(undefined)
 
   // 익명 계정을 받아오고 → 하늘을 불러온다
   useEffect(() => {
@@ -29,6 +31,10 @@ export function useJanbyeol() {
       const user = await ensureUser()
       if (!alive) return
       setMe(user)
+      storage
+        .getFeaturePref()
+        .then((v) => alive && setFeaturePrefState(v))
+        .catch(() => alive && setFeaturePrefState(null))
 
       let list = []
       try {
@@ -58,7 +64,15 @@ export function useJanbyeol() {
   }, [])
 
   // '내 성단 지키기'로 카카오를 연결하고 돌아오면 같은 사람인 채로 갱신됩니다
-  useEffect(() => onAuthChange((user) => setMe(user)), [])
+  useEffect(
+    () =>
+      onAuthChange((user) => {
+        setMe(user)
+        // 다른 기기에서 지킨 성단으로 들어오면, 그 계정의 선택을 다시 읽습니다
+        storage.getFeaturePref().then(setFeaturePrefState).catch(() => {})
+      }),
+    []
+  )
 
   /** 잔별 띄우기 — 좌표는 이때 확정되어 함께 저장됩니다 */
   const addStar = useCallback(
@@ -78,7 +92,7 @@ export function useJanbyeol() {
         warmedBy: [],
         replies: [],
         seeded: false,
-        allowFeature, // 글쓴이가 직접 체크했을 때만 true
+        allowFeature, // 글쓴이가 '앞으로 소개해도 좋아요'를 직접 골랐을 때만 true
       }
       // 새 잔별은 내 성단의 바깥 — 별이 태어나는 자리에 자리 잡는다
       const star = { ...draft, pos: galaxyPositionFor(draft) }
@@ -160,6 +174,33 @@ export function useJanbyeol() {
     }
   }, [])
 
+  /**
+   * 앞으로 띄울 잔별의 소개 허락 — 한 번의 선택
+   * 끄면 지금까지 허락한 내 잔별도 모두 거둡니다. 동의 철회는 그래야 맞습니다.
+   */
+  const setFeaturePref = useCallback(
+    async (on) => {
+      const before = featurePref
+      setFeaturePrefState(on)
+      let snapshot = null
+      if (!on) {
+        setStars((prev) => {
+          snapshot = prev
+          return prev.map((s) => (s.authorId === me.id && s.allowFeature ? { ...s, allowFeature: false } : s))
+        })
+      }
+      try {
+        await storage.setFeaturePref(on)
+      } catch (err) {
+        console.error('[잔별] 소개 선택을 저장하지 못했습니다.', err)
+        setFeaturePrefState(before)
+        if (snapshot) setStars(snapshot)
+        throw err
+      }
+    },
+    [featurePref, me]
+  )
+
   /** 내 별 하나를 거둡니다 — 전부 지우지 않고도 빠져나갈 길 */
   const removeStar = useCallback(async (starId) => {
     const before = await new Promise((done) => {
@@ -225,6 +266,8 @@ export function useJanbyeol() {
     report,
     block,
     setAllowFeature,
+    featurePref,
+    setFeaturePref,
     reset,
     read,
     readMap,

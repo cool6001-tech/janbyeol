@@ -2,6 +2,7 @@ import { useRef } from 'react'
 import { relativeWhen, yearsAgo } from '../lib/time.js'
 import { subjectParticle } from '../lib/korean.js'
 import Account, { AccountFooter } from './Account.jsx'
+import { isFeatureOnce } from '../lib/policy.js'
 
 /**
  * 나의 성단 — 저장된 기록이 회고가 되는 화면
@@ -19,6 +20,8 @@ export default function ConstellationPanel({
   onContact,
   me,
   onNotice,
+  featurePref,
+  onFeaturePref,
 }) {
   const { count, warmth, starlight, tagRanking, brightest, anniversaries } = data
   const maxTag = Math.max(1, ...tagRanking.map((t) => t.count))
@@ -175,6 +178,36 @@ export default function ConstellationPanel({
               </ul>
             </section>
           </>
+        )}
+
+        {/* 공식 계정 소개 — 처음 띄울 때 한 번 고른 것을 여기서 언제든 바꿉니다 (약관 제9조) */}
+        {onFeaturePref && featurePref !== undefined && isFeatureOnce() && (
+          <section className="block featurepref">
+            <h3>공식 계정 소개</h3>
+            <label className="featuretoggle">
+              <input
+                type="checkbox"
+                checked={featurePref === true}
+                onChange={async (e) => {
+                  const on = e.target.checked
+                  try {
+                    await onFeaturePref(on)
+                    onNotice?.(
+                      on
+                        ? '앞으로 띄우는 잔별은 공식 계정에 소개될 수 있어요'
+                        : '소개 허락을 거뒀어요. 지금까지 허락한 잔별도 모두 거뒀어요.'
+                    )
+                  } catch {
+                    onNotice?.('지금은 바꾸지 못했어요. 잠시 뒤에 다시 해주세요.')
+                  }
+                }}
+              />
+              <span>앞으로 띄우는 잔별을 잔별 공식 계정에 소개해도 좋아요</span>
+            </label>
+            <p className="featurepref-note">
+              이름 없이 글과 온기 수만 실립니다. 끄면 지금까지 허락한 잔별도 모두 거둬요.
+            </p>
+          </section>
         )}
 
         {me && <Account me={me} onNotice={onNotice} />}

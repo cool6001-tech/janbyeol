@@ -3011,6 +3011,46 @@ ul {
   color: var(--mist-hi);
 }
 
+/* 나의 성단 — 공식 계정 소개 선택 */
+.featurepref .featuretoggle {
+  margin-top: 4px;
+  align-items: flex-start;
+  line-height: 1.6;
+}
+.featurepref-note {
+  margin: 6px 0 0 24px;
+  font-size: var(--fs-xs);
+  line-height: 1.6;
+  color: var(--mist);
+  opacity: 0.8;
+}
+
+/* 소개를 허락한 내 잔별 — 한 줄과 '이 별만 거두기' */
+.featureon {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 10px 0 2px;
+  font-size: var(--fs-xs);
+  line-height: 1.6;
+  color: var(--mist);
+}
+.featureon button {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--mist-hi);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: rgba(174, 184, 210, 0.4);
+  cursor: pointer;
+}
+.featureon button:hover {
+  color: var(--stardust-hi);
+}
+
 /* 이 별 거두기 — 글이 끝나는 자리, 오른쪽 끝에 조용히.
    빨갛게 칠하지 않습니다. 겁주려고 둔 버튼이 아니니까요. */
 .removeone {
@@ -3270,4 +3310,129 @@ ul {
   color: #fff;
   font-size: 20px;
   cursor: pointer;
+}
+
+
+/* ---------------------------------------------------------------
+   1분 소개 영상 — 처음 온 사람에게, 하늘보다 먼저
+--------------------------------------------------------------- */
+.introvideo {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--void);
+  animation: ivIn 0.5s ease both;
+}
+.introvideo.closing {
+  animation: ivOut 0.45s ease both;
+}
+.introvideo video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: var(--void);
+}
+.iv-top {
+  position: absolute;
+  top: max(16px, env(safe-area-inset-top));
+  right: 16px;
+  display: flex;
+  gap: 8px;
+}
+.iv-btn {
+  padding: 8px 14px;
+  border: 1px solid rgba(226, 214, 255, 0.22);
+  border-radius: 999px;
+  background: rgba(10, 11, 22, 0.62);
+  backdrop-filter: blur(8px);
+  color: var(--mist-hi);
+  font: inherit;
+  font-size: var(--fs-xs);
+  cursor: pointer;
+}
+.iv-btn.strong {
+  color: #fff;
+  border-color: rgba(226, 214, 255, 0.4);
+}
+.iv-btn:hover {
+  color: #fff;
+  border-color: rgba(226, 214, 255, 0.6);
+}
+.iv-play {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  padding: 14px 22px;
+  border: 1px solid rgba(255, 200, 140, 0.55);
+  border-radius: 999px;
+  background: rgba(20, 14, 10, 0.75);
+  color: #ffe2c4;
+  font: inherit;
+  font-size: var(--fs-sm, 15px);
+  cursor: pointer;
+  box-shadow: 0 0 40px rgba(255, 176, 103, 0.25);
+}
+.iv-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: rgba(226, 214, 255, 0.08);
+}
+.iv-bar span {
+  display: block;
+  height: 100%;
+  background: var(--warm);
+  transform-origin: left;
+  transition: transform 0.25s linear;
+}
+@keyframes ivIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes ivOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* 약관 변경 안내 — 입력창 위에 한 줄로, 닫을 수 있게 */
+.termsnotice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 640px;
+  margin: 0 auto 10px;
+  padding: 8px 10px 8px 14px;
+  border: 1px solid rgba(226, 214, 255, 0.16);
+  border-radius: 12px;
+  background: rgba(14, 16, 30, 0.82);
+  backdrop-filter: blur(8px);
+  font-size: var(--fs-xs);
+  line-height: 1.55;
+  color: var(--mist-hi);
+  pointer-events: auto;
+}
+.termsnotice b {
+  font-weight: 500;
+  color: #eef0ff;
+}
+.termsnotice a {
+  flex: 0 0 auto;
+  color: var(--stardust-hi);
+  text-underline-offset: 3px;
+}
+.termsnotice button {
+  flex: 0 0 auto;
+  border: 0;
+  background: none;
+  color: var(--mist);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 4px;
 }
