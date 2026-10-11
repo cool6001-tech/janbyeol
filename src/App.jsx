@@ -512,11 +512,8 @@ export default function App() {
   const closeContact = useCallback(() => setContactOpen(false), [])
 
   /** 카드를 닫아도 줌인·궤도·연결은 그대로 남는다 */
-  const closeCard = useCallback(() => {
-    setCardOpen(false)
-    // 나의 성단에서 카드를 닫으면 내 잔별 목록으로 — 다른 글을 바로 고를 수 있게
-    if (mineMode && isNarrow) setPanelOpen(true)
-  }, [mineMode, isNarrow])
+  // 카드를 닫아도 지금 시점(내가 띄운 별 / 전체 은하)은 그대로 — 시점은 상단 탭으로만 바뀝니다
+  const closeCard = useCallback(() => setCardOpen(false), [])
 
   /* 하늘에 닿지 못했을 때 — 별이 없는 것과 못 불러온 것은 다릅니다 */
   useEffect(() => {
@@ -569,8 +566,8 @@ export default function App() {
     setShineOn(false)
     setWelcomeGone(true)
     setMineMode(true)
-    // 좁은 화면에서도 내 잔별 목록이 바로 보이게 펼쳐 둡니다
-    setPanelOpen(true)
+    // 좁은 화면에서는 먼저 내 별들의 모습만 — 목록은 아래 '내가 띄운 별'을 누르면 펼쳐집니다
+    setPanelOpen(window.innerWidth > 860)
     setSelectedId(null)
     setCardOpen(false)
     const mine = constellation.mine
@@ -959,7 +956,8 @@ export default function App() {
           sheet={isNarrow}
           open={!isNarrow || panelOpen}
           onToggle={() => setPanelOpen((v) => !v)}
-          onClose={backToCosmos}
+          // X는 목록만 접습니다. 전체 은하로는 상단 탭으로만 돌아가요
+          onClose={isNarrow ? () => setPanelOpen(false) : null}
           onSelectStar={handleSelect}
           roadCount={readTrail.length}
           onContact={() => setContactOpen(true)}

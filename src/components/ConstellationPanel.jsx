@@ -90,9 +90,11 @@ export default function ConstellationPanel({
               : '지금 하늘에는 내가 띄운 잔별만 밝혀져 있어요'}
           </p>
         </div>
-        <button className="close static" onClick={onClose} aria-label="전체 은하로 돌아가기" title="전체 은하로">
-          ×
-        </button>
+        {onClose && open && (
+          <button className="close static" onClick={onClose} aria-label="목록 접기" title="목록 접기">
+            ×
+          </button>
+        )}
       </header>
 
       <div className="panelbody">

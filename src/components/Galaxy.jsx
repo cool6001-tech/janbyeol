@@ -215,8 +215,9 @@ export default function Galaxy({
      * 매 프레임 조금씩 움직여서 별이 튀지 않고, 필요 없어지면 제자리로 돌아갑니다.
      * 고른 별(가운데 별)은 움직이지 않습니다.
      */
-    const MIN_GAP = 38 // 손가락 하나가 별 하나만 짚을 수 있는 간격(px)
-    const MAX_SHIFT = 54
+    // 너무 벌리면 성단(군집)의 모양이 흩어져요 — 고를 수 있을 만큼만, 모양은 남게
+    const MIN_GAP = 28 // 손가락으로 별 하나를 짚을 수 있는 최소 간격(px)
+    const MAX_SHIFT = 34
     const declutter = (byId, fixedId) => {
       const items = []
       const grid = new Map()
