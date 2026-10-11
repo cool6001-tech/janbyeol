@@ -562,13 +562,27 @@ function safeSet(key, value) {
   }
 }
 
+/** 별길은 하루만 남깁니다 — 읽은 지(다시 읽은 지) 24시간이 지난 자리는 지워져요 */
+const READ_TTL_MS = 24 * 3600 * 1000
+
+function freshOnly(list) {
+  const cut = Date.now() - READ_TTL_MS
+  return list.filter((r) => new Date(r.lastAt || r.at).getTime() > cut)
+}
+
 function readLogAll() {
-  if (readCache) return readCache
-  try {
-    const parsed = JSON.parse(safeGet(READ_KEY) || '[]')
-    readCache = Array.isArray(parsed) ? parsed : []
-  } catch {
-    readCache = []
+  if (!readCache) {
+    try {
+      const parsed = JSON.parse(safeGet(READ_KEY) || '[]')
+      readCache = Array.isArray(parsed) ? parsed : []
+    } catch {
+      readCache = []
+    }
+  }
+  const fresh = freshOnly(readCache)
+  if (fresh.length !== readCache.length) {
+    readCache = fresh
+    safeSet(READ_KEY, JSON.stringify(readCache))
   }
   return readCache
 }

@@ -57,9 +57,9 @@ const STEPS = [
     id: 'mine',
     kind: 'target',
     target: '.segment .chip:nth-child(1)',
-    eyebrow: '나의 성단',
+    eyebrow: '내가 띄운 별',
     title: '내 이야기들은 한자리에 모여요',
-    body: '‘나의 성단’을 누르면 내가 띄운 별만 밝아지고, 어떤 마음이 많았는지 조용히 돌아볼 수 있어요.',
+    body: '‘내가 띄운 별’을 누르면 내 별만 밝아지고, 지금까지 쓴 글을 목록으로 모아 볼 수 있어요.',
   },
   {
     // 그리고 다시 '전체 은하'로

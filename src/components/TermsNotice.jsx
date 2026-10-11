@@ -29,7 +29,7 @@ export default function TermsNotice() {
   return (
     <div className="termsnotice" role="status">
       <span>
-        <b>10월 14일부터 이용약관이 바뀌어요.</b> 공식 계정 소개 동의를 글마다 묻지 않고, 처음 한 번만 물어요.
+        <b>10월 15일부터 이용약관이 바뀌어요.</b> 공식 계정 소개 동의를 글마다 묻지 않고, 처음 한 번만 물어요.
       </span>
       <a href="/terms.html" target="_blank" rel="noreferrer">
         자세히

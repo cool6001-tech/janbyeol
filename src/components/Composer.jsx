@@ -19,7 +19,7 @@ export default function Composer({ onSubmit, onFocus, compact = false, featurePr
   // "동의한 줄 몰랐는데 내 글이 올라갔다"는 사고가 한 번이면 끝이기 때문입니다.
   // 한 번 답하면 다음부터는 묻지 않고, 나의 성단에서 언제든 바꿀 수 있어요.
   const [allowFeature, setAllowFeature] = useState(false)
-  // 10월 14일(약관 변경 적용일) 전에는 예전처럼 글마다 묻습니다
+  // 10월 15일(약관 변경 적용일) 전에는 예전처럼 글마다 묻습니다
   const onceMode = isFeatureOnce()
   const askOnce = onceMode && featurePref === null // 아직 한 번도 답하지 않은 사람
   const askEach = !onceMode
@@ -144,7 +144,7 @@ export default function Composer({ onSubmit, onFocus, compact = false, featurePr
                 <>
                   앞으로 띄우는 내 잔별을 <b>잔별 공식 계정에 소개</b>해도 좋아요
                   <small>
-                    이번 한 번만 물어요. 이름 없이 글과 온기 수만 실리고, 나의 성단에서 언제든 바꾸거나 거둘 수 있어요.
+                    이번 한 번만 물어요. 이름 없이 글과 온기 수만 실리고, ‘내가 띄운 별’에서 언제든 바꾸거나 거둘 수 있어요.
                   </small>
                 </>
               ) : (

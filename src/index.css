@@ -3436,3 +3436,115 @@ ul {
   cursor: pointer;
   padding: 2px 4px;
 }
+
+
+/* ---------------------------------------------------------------
+   나와 닮은 하루를 보낸 별 — 내 잔별 카드 맨 위
+--------------------------------------------------------------- */
+.kin {
+  margin: 4px 0 16px;
+  padding: 12px 12px 6px;
+  border: 1px solid rgba(255, 200, 140, 0.22);
+  border-radius: 14px;
+  background: rgba(255, 176, 103, 0.05);
+}
+.kin h4 {
+  margin: 0 0 8px 4px;
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  color: #ffe2c4;
+  letter-spacing: 0.02em;
+}
+.kin h4 b {
+  margin-left: 4px;
+  color: var(--warm);
+}
+.kin ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.kin li + li {
+  border-top: 1px solid rgba(226, 214, 255, 0.07);
+}
+.kin button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 4px;
+  border: 0;
+  background: none;
+  color: #eef0ff;
+  font: inherit;
+  font-size: var(--fs-sm, 14px);
+  text-align: left;
+  cursor: pointer;
+}
+.kin button:hover .kin-text {
+  color: #fff;
+}
+.kin-dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 8px currentColor;
+}
+.kin-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 1.5;
+}
+.kin em {
+  flex: 0 0 auto;
+  font-style: normal;
+  font-size: var(--fs-xs);
+  color: var(--mist);
+}
+.kinback {
+  display: inline-block;
+  margin: 2px 0 12px;
+  padding: 6px 12px;
+  border: 1px solid rgba(226, 214, 255, 0.2);
+  border-radius: 999px;
+  background: rgba(20, 22, 38, 0.6);
+  color: var(--mist-hi);
+  font: inherit;
+  font-size: var(--fs-xs);
+  cursor: pointer;
+}
+.kinback:hover {
+  color: #fff;
+}
+
+/* 공유하기 — 종이비행기, 눈에 띄게 */
+.sharebtn {
+  border-color: rgba(255, 200, 140, 0.42);
+  background: rgba(255, 176, 103, 0.08);
+  color: #ffe2c4;
+  font-weight: 500;
+  padding: 7px 14px 7px 12px;
+}
+.sharebtn svg {
+  width: 16px;
+  height: 16px;
+}
+.sharebtn:hover {
+  color: #fff;
+  border-color: rgba(255, 200, 140, 0.7);
+  background: rgba(255, 176, 103, 0.16);
+}
+
+/* 내가 띄운 잔별 수 */
+.mylist-count {
+  margin-left: 4px;
+  font-weight: 500;
+  color: var(--warm);
+}

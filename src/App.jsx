@@ -12,7 +12,7 @@ import TermsNotice from './components/TermsNotice.jsx'
 import { ContactSheet } from './components/Contact.jsx'
 import { useJanbyeol } from './hooks/useJanbyeol.js'
 import { myConstellation, findKindred, shiningStars } from './lib/stats.js'
-import { buildGraph, buildOwnThreads, traceFrom, reachOf } from './lib/graph.js'
+import { buildGraph, traceFrom, reachOf } from './lib/graph.js'
 import { distance, distanceToFit, cosmosDistance, FOCAL } from './lib/geometry.js'
 import { GALAXY_RADIUS } from './lib/galaxy.js'
 import { onboarding, takeAuthNotice } from './lib/storage.js'
@@ -60,6 +60,9 @@ const ANCHOR_CLEAR = 240
 /** 넓은 화면에서 좌우를 가리는 것들의 너비 — 이만큼 하늘이 비켜섭니다 */
 const CARD_DOCK = 532 // 오른쪽 잔별 카드 (넓은 화면 492px + 여백)
 const PANEL_DOCK = 462 // 왼쪽 나의 성단 패널 (넓은 화면 430px + 여백)
+
+/** 내 잔별 곁으로 모여드는 닮은 별의 수 */
+const KIN_COUNT = 5
 
 /** 점수(0~10)를 궤도 반지름으로 */
 function orbitRadiusFor(score) {
@@ -138,6 +141,8 @@ export default function App() {
   const [cardOpen, setCardOpen] = useState(false) // 카드를 닫아도 줌인은 남는다
   const [mineMode, setMineMode] = useState(false) // 나의 성단 시점인가
   const [kindred, setKindred] = useState({ anchorId: null, ids: [] })
+  // 닮은 별 목록에서 남의 별을 열었을 때, 돌아갈 내 잔별
+  const [kinOrigin, setKinOrigin] = useState(null)
   const [focus, setFocus] = useState(null)
   const [ripple, setRipple] = useState(null)
   const [toast, setToast] = useState('')
@@ -274,26 +279,35 @@ export default function App() {
    * 내 성단은 한 줄기로 또렷하고, 그 뒤로 낯선 이들과의 연결이 희미하게 비칩니다.
    */
   const graph = useMemo(() => buildGraph(stars, 4), [stars])
-  const ownThreads = useMemo(() => buildOwnThreads(stars), [stars])
 
+  // 내 잔별끼리 시간 순으로 잇던 '이야기의 줄기'는 그리지 않습니다.
+  // 선이 많아 복잡하기만 했고, 내 잔별은 나의 성단 목록에서 볼 수 있으니까요.
   const links = useMemo(() => {
-    const out = [
-      ...graph.edges.map((e) => ({ a: e.a, b: e.b, w: e.w, kind: 'bond' })),
-      ...ownThreads,
-    ]
+    const out = graph.edges.map((e) => ({ a: e.a, b: e.b, w: e.w, kind: 'bond' }))
     if (kindred.anchorId) {
       for (const id of kindred.ids) {
         out.push({ a: kindred.anchorId, b: id, w: 2, kind: 'bond', cluster: true })
       }
     }
     return out
-  }, [graph, ownThreads, kindred])
+  }, [graph, kindred])
 
   /** 누른 잔별에서 별빛이 몇 겹으로 번져나가는지 */
-  const trace = useMemo(
-    () => (selectedId ? traceFrom(graph.adj, selectedId, TRACE_DEPTH) : null),
-    [graph, selectedId]
-  )
+  /** 내 잔별을 열었을 때는 그물을 따라가지 않고, 닮은 별들(공감 성단)만 곁에 둡니다 */
+  const kinMode = Boolean(selectedId && kindred.anchorId === selectedId)
+  const trace = useMemo(() => {
+    if (!selectedId) return null
+    if (kinMode) {
+      const depthOf = new Map([[selectedId, 0]])
+      const edges = []
+      for (const id of kindred.ids) {
+        depthOf.set(id, 1)
+        edges.push({ a: selectedId, b: id, depth: 1 })
+      }
+      return { rootId: selectedId, depthOf, edges, maxDepth: 1 }
+    }
+    return traceFrom(graph.adj, selectedId, TRACE_DEPTH)
+  }, [graph, selectedId, kinMode, kindred])
   const reach = useMemo(() => reachOf(trace, stars), [trace, stars])
 
   /**
@@ -310,7 +324,7 @@ export default function App() {
       r2: ORBIT_R2,
       clear: ANCHOR_CLEAR,
     }
-    if (selectedId && trace) {
+    if (selectedId && trace && !kinMode) {
       const ring1 = []
       const ring2 = []
       for (const [id, depth] of trace.depthOf) {
@@ -342,7 +356,7 @@ export default function App() {
       }
     }
     return empty
-  }, [selectedId, trace, kindred, graph, isNarrow])
+  }, [selectedId, trace, kindred, graph, isNarrow, kinMode])
 
   const showCard = Boolean(selected && cardOpen)
   /** 회고 시트를 접어둔 채 하늘을 보고 있는 상태 — 입력창은 그 손잡이 위로 */
@@ -466,14 +480,22 @@ export default function App() {
 
       setSelectedId(id)
       setCardOpen(true)
-      setKindred({ anchorId: null, ids: [] })
+      setKinOrigin(null)
       if (isNarrow) setPanelOpen(false)
 
-      const reached = traceFrom(graph.adj, id, TRACE_DEPTH)
       let outer = ANCHOR_CLEAR
-      for (const [nid, depth] of reached.depthOf) {
-        if (depth === 1) outer = Math.max(outer, orbitRadiusFor(graph.scoreOf(id, nid)))
-        else if (depth === 2 && !isNarrow) outer = Math.max(outer, ORBIT_R2)
+      if (star.authorId === me.id) {
+        // 내 잔별 — 나와 닮은 하루를 보낸 다른 사람의 별들이 곁으로 모여듭니다
+        const kin = findKindred(stars, star, KIN_COUNT)
+        setKindred({ anchorId: id, ids: kin.map((s) => s.id) })
+        for (const s of kin) outer = Math.max(outer, orbitRadiusFor(graph.scoreOf(id, s.id) || 6))
+      } else {
+        setKindred({ anchorId: null, ids: [] })
+        const reached = traceFrom(graph.adj, id, TRACE_DEPTH)
+        for (const [nid, depth] of reached.depthOf) {
+          if (depth === 1) outer = Math.max(outer, orbitRadiusFor(graph.scoreOf(id, nid)))
+          else if (depth === 2 && !isNarrow) outer = Math.max(outer, ORBIT_R2)
+        }
       }
 
       setFocus({
@@ -484,13 +506,17 @@ export default function App() {
         key: Date.now() + Math.random(),
       })
     },
-    [stars, selectedId, graph, isNarrow, fitDistance, readMap]
+    [stars, selectedId, graph, isNarrow, fitDistance, readMap, me]
   )
 
   const closeContact = useCallback(() => setContactOpen(false), [])
 
   /** 카드를 닫아도 줌인·궤도·연결은 그대로 남는다 */
-  const closeCard = useCallback(() => setCardOpen(false), [])
+  const closeCard = useCallback(() => {
+    setCardOpen(false)
+    // 나의 성단에서 카드를 닫으면 내 잔별 목록으로 — 다른 글을 바로 고를 수 있게
+    if (mineMode && isNarrow) setPanelOpen(true)
+  }, [mineMode, isNarrow])
 
   /* 하늘에 닿지 못했을 때 — 별이 없는 것과 못 불러온 것은 다릅니다 */
   useEffect(() => {
@@ -543,8 +569,8 @@ export default function App() {
     setShineOn(false)
     setWelcomeGone(true)
     setMineMode(true)
-    // 좁은 화면에서는 손잡이만 남기고 접어 둔다 — 먼저 보여야 할 건 하늘이니까
-    setPanelOpen(window.innerWidth > 860)
+    // 좁은 화면에서도 내 잔별 목록이 바로 보이게 펼쳐 둡니다
+    setPanelOpen(true)
     setSelectedId(null)
     setCardOpen(false)
     const mine = constellation.mine
@@ -604,16 +630,17 @@ export default function App() {
         say(msg, 3600)
         throw err // 입력창이 글을 지우지 않도록
       }
-      const similar = findKindred(stars, star, 5)
+      const similar = findKindred(stars, star, KIN_COUNT)
       setKindred({ anchorId: star.id, ids: similar.map((s) => s.id) })
-      lookAt(star, { scale: 1, dist: fitDistance(ORBIT_FAR * 1.2), pitch: 0.7, hold: 5200 })
-      say('잔별이 떠올랐어요. 닮은 마음들이 모여듭니다.')
+      // 내 별이 화면 가운데, 닮은 별들이 그 곁 궤도로 — 카드가 열린 뒤에도 보이게 맞춥니다
+      setFocus({ pos: star.pos, dist: fitDistance(ORBIT_FAR * 1.15, true), pitch: 0.82, hold: 14000, key: Date.now() })
+      say('잔별이 떠올랐어요. 닮은 하루를 보낸 별들이 곁으로 모여요.')
       setTimeout(() => {
         setSelectedId(star.id)
         setCardOpen(true)
       }, 950)
     },
-    [addStar, stars, lookAt, say, fitDistance, setFeaturePref]
+    [addStar, stars, say, fitDistance, setFeaturePref]
   )
 
   const handleWarm = useCallback(
@@ -875,7 +902,7 @@ export default function App() {
         {!welcomeGone && ready && !tourOpen && !introOpen && <Welcome gone={welcomeGone} layout={welcomeLayout} />}
 
         <div className="bottom">
-          {ready && !tourOpen && !introOpen && <TermsNotice />}
+          {ready && !tourOpen && !introOpen && !showCard && <TermsNotice />}
           <p className="creed">
             별거 아닌 줄 알았던 당신의 오늘이,
             <br />
@@ -906,6 +933,18 @@ export default function App() {
             onBlock={handleBlock}
             onNotice={say}
             onAllowFeature={setAllowFeature}
+            kin={
+              kinMode && selected.authorId === me.id
+                ? kindred.ids.map((kid) => stars.find((s) => s.id === kid)).filter(Boolean)
+                : null
+            }
+            backTo={kinOrigin && kinOrigin !== selected.id ? kinOrigin : null}
+            onOpenStar={(kid) => {
+              const from = selected.id
+              handleSelect(kid)
+              setKinOrigin(from)
+            }}
+            onBack={(mid) => handleSelect(mid)}
             onRemove={handleRemoveStar}
             onClose={closeCard}
           />

@@ -239,6 +239,15 @@ export function useJanbyeol() {
     setRead(next)
   }, [])
 
+  // 별길은 하루만 — 화면을 오래 열어 두어도 하루 지난 자리는 저절로 사라지게
+  useEffect(() => {
+    const t = setInterval(async () => {
+      const fresh = await readLog.list()
+      setRead((prev) => (prev.length === fresh.length ? prev : fresh))
+    }, 10 * 60 * 1000)
+    return () => clearInterval(t)
+  }, [])
+
   /** 별길만 지운다 (띄운 잔별은 그대로) */
   const clearRead = useCallback(async () => {
     setRead(await readLog.clear())

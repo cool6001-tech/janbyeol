@@ -25,8 +25,8 @@ const REVEAL_STEP = 620
 const ROAD_RGB = '120,240,196'
 
 /** 별길이 또렷하게 남아 있는 시간 · 완전히 사라지는 시간 */
-const ROAD_FULL_MS = 36 * 3600 * 1000 // 하루 반
-const ROAD_GONE_MS = 72 * 3600 * 1000 // 사흘
+const ROAD_FULL_MS = 18 * 3600 * 1000 // 열여덟 시간은 또렷하게
+const ROAD_GONE_MS = 24 * 3600 * 1000 // 하루가 지나면 사라집니다 (기록도 함께 지워져요)
 
 /** 이만큼 사이를 두고 읽었으면 다른 날의 산책으로 봅니다 (길을 잇지 않음) */
 const ROAD_GAP_MS = 3 * 3600 * 1000
@@ -209,6 +209,81 @@ export default function Galaxy({
     window.addEventListener('resize', resize)
 
     /* 별마다 살아 있는 값 (저장되지 않는 것들) */
+    /**
+     * 좁은 화면에서 서로 너무 붙은 별을 벌립니다.
+     * 저장된 자리(star.pos)는 그대로 두고, **화면에 그리는 자리만** 조금씩 밀어요.
+     * 매 프레임 조금씩 움직여서 별이 튀지 않고, 필요 없어지면 제자리로 돌아갑니다.
+     * 고른 별(가운데 별)은 움직이지 않습니다.
+     */
+    const MIN_GAP = 38 // 손가락 하나가 별 하나만 짚을 수 있는 간격(px)
+    const MAX_SHIFT = 54
+    const declutter = (byId, fixedId) => {
+      const items = []
+      const grid = new Map()
+      for (const v of byId.values()) {
+        const rt = v.rt
+        if (rt.ox === undefined) {
+          rt.ox = 0
+          rt.oy = 0
+        }
+        const pr = v.pr
+        if (!pr || rt.dim < 0.15 || pr.sx < -60 || pr.sx > width + 60 || pr.sy < -60 || pr.sy > height + 60) {
+          rt.ox *= 0.9
+          rt.oy *= 0.9
+          continue
+        }
+        v.x = pr.sx + rt.ox
+        v.y = pr.sy + rt.oy
+        v.px = 0
+        v.py = 0
+        items.push(v)
+        const key = `${Math.floor(v.x / MIN_GAP)},${Math.floor(v.y / MIN_GAP)}`
+        if (!grid.has(key)) grid.set(key, [])
+        grid.get(key).push(v)
+      }
+      for (const v of items) {
+        const gx = Math.floor(v.x / MIN_GAP)
+        const gy = Math.floor(v.y / MIN_GAP)
+        for (let ix = -1; ix <= 1; ix++) {
+          for (let iy = -1; iy <= 1; iy++) {
+            const cell = grid.get(`${gx + ix},${gy + iy}`)
+            if (!cell) continue
+            for (const u of cell) {
+              if (u === v) continue
+              const dx = v.x - u.x
+              const dy = v.y - u.y
+              const d = Math.hypot(dx, dy)
+              if (d >= MIN_GAP) continue
+              // 고정된 별과 겹치면 내가 다 비켜섭니다
+              const share = u.star.id === fixedId ? 1 : 0.5
+              const push = (MIN_GAP - d) * share
+              const nx = d > 0.01 ? dx / d : Math.cos(v.rt.phase || 0)
+              const ny = d > 0.01 ? dy / d : Math.sin(v.rt.phase || 0)
+              v.px += nx * push
+              v.py += ny * push
+            }
+          }
+        }
+      }
+      for (const v of items) {
+        const rt = v.rt
+        let tx = 0
+        let ty = 0
+        if (v.star.id !== fixedId) {
+          tx = (rt.ox + v.px) * 0.97
+          ty = (rt.oy + v.py) * 0.97
+          const m = Math.hypot(tx, ty)
+          if (m > MAX_SHIFT) {
+            tx *= MAX_SHIFT / m
+            ty *= MAX_SHIFT / m
+          }
+        }
+        rt.ox += (tx - rt.ox) * 0.22
+        rt.oy += (ty - rt.oy) * 0.22
+        v.pr = { ...v.pr, sx: v.pr.sx + rt.ox, sy: v.pr.sy + rt.oy }
+      }
+    }
+
     const runtimeOf = (star) => {
       let rt = scene.runtime.get(star.id)
       if (!rt) {
@@ -573,6 +648,9 @@ export default function Galaxy({
         const pr = project(rt, cam, width, height)
         byId.set(star.id, { star, rt, pr })
       }
+
+      // 좁은 화면 — 손가락으로 고를 수 있게, 너무 붙은 별은 화면 위에서만 살짝 벌려 둡니다
+      if (width <= 860) declutter(byId, p.gather?.anchorId || p.selectedId)
 
       /* 연결선 두 겹.
          뒤 — 공감의 그물: 다른 사람의 잔별에 닿는 선. 늘 희미하게 깔려 있다.

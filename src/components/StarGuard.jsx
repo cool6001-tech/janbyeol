@@ -120,7 +120,7 @@ export default function StarGuard({ star, onReport, onBlock, onDone }) {
               <p className="guardtitle">
                 이 사람이 띄운 잔별은 앞으로 당신의 하늘에 뜨지 않습니다.
                 <br />
-                나의 성단에서 언제든 되돌릴 수 있어요.
+                ‘내가 띄운 별’에서 언제든 되돌릴 수 있어요.
               </p>
               <button className="guarddanger" disabled={busy} onClick={block}>
                 그만 보기

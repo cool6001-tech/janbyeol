@@ -49,7 +49,7 @@ export default function ConstellationPanel({
   return (
     <aside
       className={`panel${sheet ? ' sheet' : ''}${open ? ' open' : ''}`}
-      aria-label="나의 성단"
+      aria-label="내가 띄운 별"
     >
       {/* 좁은 화면에서는 손잡이만 남기고 접힙니다 — 평소엔 하늘이 화면 전체 */}
       {/* 접혀 있을 땐 손잡이뿐 아니라 제목 줄 어디를 눌러도 펼쳐집니다.
@@ -83,7 +83,7 @@ export default function ConstellationPanel({
           </button>
         )}
         <div className="paneltitle">
-          <h2>나의 성단</h2>
+          <h2>내가 띄운 별</h2>
           <p>
             {sheet && !open
               ? `잔별 ${count} · 온기 ${warmth} — 눌러서 내 잔별 보기`
@@ -119,6 +119,24 @@ export default function ConstellationPanel({
               </div>
             </div>
 
+            {/* 내 글 목록을 가장 먼저 — 고르면 그 잔별이 열립니다 */}
+            {/* 이 패널의 주인공 — 내가 띄운 잔별. 한 장 한 장 카드로, 내 별의 색(호박빛)으로 */}
+            <section className="block mystars">
+              <h3>
+                전체 목록 <b className="mylist-count">{count}</b>
+              </h3>
+              <ul className="mylist">
+                {data.mine.map((s) => (
+                  <li key={s.id}>
+                    <button onClick={() => onSelectStar(s.id)}>
+                      <i className="mylist-mark" aria-hidden="true" />
+                      <span className="mylist-text">{s.text}</span>
+                      <em>{relativeWhen(s.createdAt)}</em>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
             {brightest && (
               <button className="brightest" onClick={() => onSelectStar(brightest.id)}>
                 <span className="eyebrow">가장 밝은 잔별</span>
@@ -162,21 +180,6 @@ export default function ConstellationPanel({
               </ul>
             </section>
 
-            {/* 이 패널의 주인공 — 내가 띄운 잔별. 한 장 한 장 카드로, 내 별의 색(호박빛)으로 */}
-            <section className="block mystars">
-              <h3>띄운 잔별</h3>
-              <ul className="mylist">
-                {data.mine.slice(0, 12).map((s) => (
-                  <li key={s.id}>
-                    <button onClick={() => onSelectStar(s.id)}>
-                      <i className="mylist-mark" aria-hidden="true" />
-                      <span className="mylist-text">{s.text}</span>
-                      <em>{relativeWhen(s.createdAt)}</em>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </section>
           </>
         )}
 

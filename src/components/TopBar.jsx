@@ -125,7 +125,7 @@ export default function TopBar({ clusterCount, mineMode, onToggleMine, onCosmos,
 
         <div className="segment" role="group" aria-label="하늘을 보는 시점">
           <button className={`chip${mineMode ? ' on' : ''}`} onClick={onToggleMine} aria-pressed={mineMode}>
-            나의 성단
+            내가 띄운 별
           </button>
           <button className={`chip${mineMode ? '' : ' on'}`} onClick={onCosmos} aria-pressed={!mineMode}>
             전체 은하

@@ -35,6 +35,10 @@ export default function StarCard({
   onAllowFeature,
   onRemove,
   onClose,
+  kin,
+  backTo,
+  onOpenStar,
+  onBack,
 }) {
   const [draft, setDraft] = useState('')
   const [confirmRemove, setConfirmRemove] = useState(false)
@@ -186,6 +190,38 @@ export default function StarCard({
       </div>
 
       <div className="cardbody">
+        {/* 닮은 별에서 왔다면 — 내 잔별로 한 번에 돌아가기 */}
+        {backTo && onBack && (
+          <button type="button" className="kinback" onClick={() => onBack(backTo)}>
+            ‹ 내 잔별로 돌아가기
+          </button>
+        )}
+
+        {/* 내 잔별 — 나와 닮은 하루를 보낸 다른 사람들의 별.
+            하늘에서도 내 별 곁으로 모여들지만, 손가락으로 고르기 쉽게 여기에도 나란히 둡니다. */}
+        {mine && kin && kin.length > 0 && (
+          <section className="kin" aria-label="나와 닮은 하루를 보낸 별">
+            <h4>
+              나와 닮은 하루를 보낸 별 <b>{kin.length}</b>
+            </h4>
+            <ul>
+              {kin.map((k) => (
+                <li key={k.id}>
+                  <button type="button" onClick={() => onOpenStar?.(k.id)}>
+                    <span
+                      className="kin-dot"
+                      style={{ color: cssColor(EMOTION_COLORS[emotionOf(k)]) }}
+                      aria-hidden="true"
+                    />
+                    <span className="kin-text">{k.text}</span>
+                    <em>{relativeWhen(k.createdAt)}</em>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
         <div className="warmrow">
           {/* 온기는 남이 건네는 것 — 내 별에는 버튼 없이 받은 온기만 보여줍니다.
               내가 내 별에 온기를 더하면 '몇 명의 밤을 비췄어요'가 거짓말이 되니까요. */}
@@ -198,12 +234,13 @@ export default function StarCard({
             </button>
           )}
           <span className="count">{mine ? '받은 온기' : '온기'} {star.warmth || 0}</span>
-          <button className="sharebtn" onClick={share} aria-label="이 잔별 보내기">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 15V4m0 0L8.5 7.5M12 4l3.5 3.5" />
-              <path d="M5 13v5.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V13" />
+          {/* 종이비행기 — 마음에 닿은 별을 친구에게 바로 띄워 보냅니다 */}
+          <button className="sharebtn" onClick={share} aria-label="이 잔별 친구에게 공유하기">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21.5 2.5 10.6 13.4" />
+              <path d="M21.5 2.5 14.6 21.2l-4-7.8-7.8-4z" />
             </svg>
-            보내기
+            공유하기
           </button>
         </div>
 
@@ -230,7 +267,7 @@ export default function StarCard({
           </p>
         )}
 
-        {/* 10월 14일 전까지는 예전처럼, 아직 허락하지 않은 내 잔별에서도 허락할 수 있게 */}
+        {/* 10월 15일 전까지는 예전처럼, 아직 허락하지 않은 내 잔별에서도 허락할 수 있게 */}
         {mine && onAllowFeature && star.allowFeature !== true && !isFeatureOnce() && (
           <label className="featuretoggle">
             <input

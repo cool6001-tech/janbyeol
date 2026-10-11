@@ -4,6 +4,7 @@
 
 import { monthKey, lastTwelveMonths, isAnniversary } from './time.js'
 import { affinityOf } from './affinity.js'
+import { emotionOf } from './emotionColor.js'
 
 export function myStars(stars, myId) {
   return stars
@@ -63,27 +64,38 @@ export function myConstellation(stars, myId, now = Date.now()) {
 }
 
 /**
- * 방금 띄운 잔별과 마음이 닮은 잔별들 (공감 성단의 재료).
+ * 내 잔별과 마음이 닮은 **다른 사람의** 잔별들 (공감 성단의 재료).
  * 닮음의 기준은 은하의 연결선과 같습니다 — 소재와 감정을 함께 본 0~10점.
+ *
+ * 내 다른 잔별은 넣지 않습니다. 위로는 나와 같은 밤을 보낸 **다른 누군가**에게서 오니까요.
+ * (내 잔별들은 '나의 성단' 목록에서 따로 볼 수 있어요.)
+ * 닮은 별이 모자라면 같은 마음(감정)의 별로, 그래도 모자라면 최근 별로 채웁니다.
  */
 export function findKindred(stars, target, limit = 5) {
-  const scored = stars
-    .filter((s) => s.id !== target.id)
+  const others = stars.filter((s) => s.id !== target.id && s.authorId !== target.authorId)
+  const picked = others
     .map((s) => ({ star: s, score: affinityOf(target, s) }))
     .filter((s) => s.score >= 3)
     .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
 
-  // 닮은 별이 모자라면, 가까이 있는 별이라도 곁에 둔다
-  if (scored.length < limit) {
-    for (const s of stars) {
-      if (scored.length >= limit) break
-      if (s.id === target.id) continue
-      if (scored.some((x) => x.star.id === s.id)) continue
-      scored.push({ star: s, score: 0 })
+  const has = (id) => picked.some((x) => x.star.id === id)
+  const newest = (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+
+  if (picked.length < limit) {
+    const mood = emotionOf(target)
+    for (const s of others.filter((s) => emotionOf(s) === mood).sort(newest)) {
+      if (picked.length >= limit) break
+      if (!has(s.id)) picked.push({ star: s, score: 2 })
     }
   }
-
-  return scored.slice(0, limit).map((s) => s.star)
+  if (picked.length < limit) {
+    for (const s of [...others].sort(newest)) {
+      if (picked.length >= limit) break
+      if (!has(s.id)) picked.push({ star: s, score: 0 })
+    }
+  }
+  return picked.map((s) => s.star)
 }
 
 /**
