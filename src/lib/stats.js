@@ -4,7 +4,6 @@
 
 import { monthKey, lastTwelveMonths, isAnniversary } from './time.js'
 import { affinityOf } from './affinity.js'
-import { emotionOf } from './emotionColor.js'
 
 export function myStars(stars, myId) {
   return stars
@@ -75,30 +74,18 @@ export function findKindred(stars, target, limit = 5, exclude = null) {
   const others = stars.filter(
     (s) => s.id !== target.id && s.authorId !== target.authorId && !(exclude && exclude.has(s.id))
   )
-  const picked = others
+  const newest = (a, b) => new Date(b.star.createdAt) - new Date(a.star.createdAt)
+  // 정말 닮은 별만 — 모자라도 아무 별로 채우지 않습니다 (상관없는 글이 섞이면 위로가 아니라 소음이 돼요)
+  return others
     .map((s) => ({ star: s, score: affinityOf(target, s) }))
-    .filter((s) => s.score >= 3)
-    .sort((a, b) => b.score - a.score)
+    .filter((s) => s.score >= KIN_MIN_SCORE)
+    .sort((a, b) => b.score - a.score || newest(a, b))
     .slice(0, limit)
-
-  const has = (id) => picked.some((x) => x.star.id === id)
-  const newest = (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-
-  if (picked.length < limit) {
-    const mood = emotionOf(target)
-    for (const s of others.filter((s) => emotionOf(s) === mood).sort(newest)) {
-      if (picked.length >= limit) break
-      if (!has(s.id)) picked.push({ star: s, score: 2 })
-    }
-  }
-  if (picked.length < limit) {
-    for (const s of [...others].sort(newest)) {
-      if (picked.length >= limit) break
-      if (!has(s.id)) picked.push({ star: s, score: 0 })
-    }
-  }
-  return picked.map((s) => s.star)
+    .map((s) => s.star)
 }
+
+/** 곁에 모일 만큼 닮았다고 보는 점수 (0~10) */
+const KIN_MIN_SCORE = 4.5
 
 /**
  * 오늘 빛나는 별 — 전체 은하에서 사람들의 마음이 가장 많이 머문 이야기들

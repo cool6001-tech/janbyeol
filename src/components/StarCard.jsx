@@ -202,6 +202,12 @@ export default function StarCard({
 
         {/* 이 별 곁으로 모인 별들 — 하늘에서도 곁으로 모여들지만, 손가락으로 고르기 쉽게 여기에도 나란히.
             하나를 누르면 그 별 곁으로 또 다른 별들이 모여요. 꼬리에 꼬리를 물고 읽어 나가는 길입니다. */}
+        {kin && kin.length === 0 && (
+          <p className="kin-empty">
+            아직 이 별과 닮은 별이 많지 않아요. 잔별이 쌓일수록 더 많은 별이 모여들어요.
+          </p>
+        )}
+
         {kin && kin.length > 0 && (
           <section className="kin" aria-label={mine ? '나에게 모인 별' : '이 별에 이어진 별'}>
             <h4>

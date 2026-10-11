@@ -3564,3 +3564,13 @@ ul {
   border-style: solid;
   background: rgba(255, 176, 103, 0.08);
 }
+
+.kin-empty {
+  margin: 4px 0 14px;
+  padding: 10px 12px;
+  border: 1px dashed rgba(226, 214, 255, 0.18);
+  border-radius: 12px;
+  font-size: var(--fs-xs);
+  line-height: 1.6;
+  color: var(--mist-hi);
+}

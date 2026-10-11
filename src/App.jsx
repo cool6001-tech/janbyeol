@@ -15,7 +15,7 @@ import { myConstellation, findKindred, shiningStars } from './lib/stats.js'
 import { buildGraph, traceFrom, reachOf } from './lib/graph.js'
 import { distance, distanceToFit, cosmosDistance, FOCAL } from './lib/geometry.js'
 import { GALAXY_RADIUS } from './lib/galaxy.js'
-import { onboarding, takeAuthNotice } from './lib/storage.js'
+import { onboarding, takeAuthNotice, storage } from './lib/storage.js'
 
 /**
  * 하늘을 보는 두 가지 시점
@@ -65,6 +65,8 @@ const PANEL_DOCK = 462 // 왼쪽 나의 성단 패널 (넓은 화면 430px + 여
 const KIN_COUNT = 5
 const KIN_STEP = 5
 const KIN_MAX = 20
+/** 의미로 고른 별 중 이보다 덜 닮은 건 곁에 두지 않습니다 (0~1, 코사인 유사도) */
+const SEMANTIC_MIN = 0.45
 
 /** 점수(0~10)를 궤도 반지름으로 */
 function orbitRadiusFor(score) {
@@ -466,6 +468,43 @@ export default function App() {
     [stars, me]
   )
 
+  /**
+   * 의미로 다시 고르기 — 먼저 단어로 고른 별을 바로 보여주고, 서버가 문장의 의미로
+   * 고른 별이 오면(보통 1초 안) 그걸로 바꿉니다. 서버가 안 되면 단어로 고른 그대로 둡니다.
+   * 의미를 아직 안 읽은 별이면 한 번 읽어 달라고 한 뒤 다시 물어요.
+   */
+  const starsRef = useRef(stars)
+  starsRef.current = stars
+  const refineKin = useCallback(
+    async (anchorId, limit, trail = [], embedFirst = false) => {
+      const skip = new Set(trail)
+      for (const s of starsRef.current) if (s.authorId === me.id && s.id !== anchorId) skip.add(s.id)
+      const ask = () => storage.kinOf(anchorId, limit + 1, [...skip])
+      try {
+        if (embedFirst) await storage.embedStar(anchorId)
+        let rows = await ask()
+        if (!rows.length && !embedFirst && (await storage.embedStar(anchorId))) rows = await ask()
+        const known = new Set(starsRef.current.map((s) => s.id))
+        const good = rows.filter((r) => known.has(r.id) && r.similarity >= SEMANTIC_MIN)
+        if (!good.length) return
+        setKindred((prev) =>
+          prev.anchorId !== anchorId
+            ? prev
+            : {
+                anchorId,
+                ids: good.slice(0, limit).map((r) => r.id),
+                more: rows.length > limit && limit < KIN_MAX,
+                limit,
+                semantic: true,
+              }
+        )
+      } catch {
+        /* 단어로 고른 별을 그대로 둡니다 */
+      }
+    },
+    [me]
+  )
+
   const handleSelect = useCallback(
     (id, opts = {}) => {
       setWelcomeGone(true)
@@ -503,6 +542,7 @@ export default function App() {
       setKinTrail(trail)
       const kin = kinFor(star, KIN_COUNT, trail)
       setKindred({ anchorId: id, ids: kin.ids, more: kin.more, limit: KIN_COUNT })
+      refineKin(id, KIN_COUNT, trail)
       let outer = ANCHOR_CLEAR
       for (const kid of kin.ids) outer = Math.max(outer, orbitRadiusFor(graph.scoreOf(id, kid) || 6))
 
@@ -514,7 +554,7 @@ export default function App() {
         key: Date.now() + Math.random(),
       })
     },
-    [stars, selectedId, graph, isNarrow, fitDistance, readMap, kinFor]
+    [stars, selectedId, graph, isNarrow, fitDistance, readMap, kinFor, refineKin]
   )
 
   /** 곁에 모인 별을 더 불러옵니다 — 다섯 개씩, 최대 스무 개까지 */
@@ -524,11 +564,12 @@ export default function App() {
     const limit = Math.min(KIN_MAX, kindred.limit + KIN_STEP)
     const kin = kinFor(star, limit, kinTrail)
     setKindred({ anchorId: star.id, ids: kin.ids, more: kin.more, limit })
+    refineKin(star.id, limit, kinTrail)
     let outer = ANCHOR_CLEAR
     for (const kid of kin.ids) outer = Math.max(outer, orbitRadiusFor(graph.scoreOf(star.id, kid) || 6))
     setFocus({ pos: star.pos, dist: fitDistance(outer * 1.15, true), pitch: 0.82, hold: 14000, key: Date.now() })
     say(`별 ${kin.ids.length}개가 모였어요`)
-  }, [stars, kindred, kinTrail, kinFor, graph, fitDistance, say])
+  }, [stars, kindred, kinTrail, kinFor, graph, fitDistance, say, refineKin])
 
   const closeContact = useCallback(() => setContactOpen(false), [])
 
@@ -662,6 +703,8 @@ export default function App() {
         more: found.length > KIN_COUNT,
         limit: KIN_COUNT,
       })
+      // 방금 띄운 글의 의미를 읽고(Gemini), 의미가 닮은 별로 다시 모읍니다
+      refineKin(star.id, KIN_COUNT, [], true)
       // 내 별이 화면 가운데, 닮은 별들이 그 곁 궤도로 — 카드가 열린 뒤에도 보이게 맞춥니다
       setFocus({ pos: star.pos, dist: fitDistance(ORBIT_FAR * 1.15, true), pitch: 0.82, hold: 14000, key: Date.now() })
       say('잔별이 떠올랐어요. 별들이 나에게 모여요.')
@@ -670,7 +713,7 @@ export default function App() {
         setCardOpen(true)
       }, 950)
     },
-    [addStar, stars, say, fitDistance, setFeaturePref]
+    [addStar, stars, say, fitDistance, setFeaturePref, refineKin]
   )
 
   const handleWarm = useCallback(

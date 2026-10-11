@@ -393,6 +393,31 @@ export const storage = {
     }
   },
 
+  /**
+   * 이 별의 의미를 읽어 두라고 서버에 부탁합니다 (Gemini 임베딩, supabase/functions/embed-star).
+   * 실패해도 괜찮아요 — 그동안은 단어로 닮은 별을 찾습니다.
+   */
+  async embedStar(starId) {
+    try {
+      await ensureUser()
+      const { data, error } = await sb.functions.invoke('embed-star', { body: { star_id: starId } })
+      return !error && data?.ok !== false
+    } catch {
+      return false
+    }
+  },
+
+  /**
+   * 의미가 가장 가까운 별들 — [{ id, similarity }]
+   * 서버가 같은 사람의 별, 가려진 별, 차단한 사람의 별은 이미 빼고 줍니다.
+   */
+  async kinOf(starId, limit, exclude = []) {
+    await ensureUser()
+    const { data, error } = await sb.rpc('kin_of', { p_star: starId, p_limit: limit, p_exclude: exclude })
+    if (error) throw error
+    return data || []
+  },
+
   /** 잔별 하나의 소개 허락 바꾸기 — 카드에서 이 별만 거둘 때 */
   async setAllowFeature(starId, on) {
     await ensureUser()
