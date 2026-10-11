@@ -200,9 +200,9 @@ export default function StarCard({
         {/* 내 잔별 — 나와 닮은 하루를 보낸 다른 사람들의 별.
             하늘에서도 내 별 곁으로 모여들지만, 손가락으로 고르기 쉽게 여기에도 나란히 둡니다. */}
         {mine && kin && kin.length > 0 && (
-          <section className="kin" aria-label="나와 닮은 하루를 보낸 별">
+          <section className="kin" aria-label="나에게 모인 별">
             <h4>
-              나와 닮은 하루를 보낸 별 <b>{kin.length}</b>
+              나에게 모인 별 <b>{kin.length}</b>
             </h4>
             <ul>
               {kin.map((k) => (

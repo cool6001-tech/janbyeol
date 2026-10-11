@@ -581,15 +581,21 @@ export default function App() {
     )
     const centroid = { x: sum.x / mine.length, y: sum.y / mine.length, z: sum.z / mine.length }
     const spread = Math.max(60, ...mine.map((s) => distance(s.pos, centroid)))
+    /* 내 별들이 은하 여기저기 흩어져 있으면 전부 담으려다 은하가 아주 작아졌어요.
+       전체 은하를 볼 때보다 조금만 더 멀리(은하가 약간 작게 보이는 정도)까지만 물러납니다.
+       그만큼 물러날 때는 가운데도 은하 중심 쪽으로 당겨서, 바깥 별이 잘리지 않게 합니다. */
+    const cap = wholeGalaxy() * 1.08
+    const fit = fitDistance(spread * 1.25)
+    const capped = fit > cap
     setFocus({
-      pos: centroid,
-      dist: fitDistance(spread * 1.25),
+      pos: capped ? { x: centroid.x * 0.5, y: centroid.y * 0.5, z: centroid.z * 0.5 } : centroid,
+      dist: Math.min(fit, cap),
       pitch: 0.72,
       hold: 9000,
       key: Date.now(),
     })
     say('내가 띄운 잔별만 밝혀 두었어요 — 별 하나를 눌러보세요')
-  }, [constellation, say, fitDistance])
+  }, [constellation, say, fitDistance, wholeGalaxy])
 
   /** 전체 은하로 — 모두의 잔별이 다시 떠오르고 카메라가 제자리로 */
   const backToCosmos = useCallback(() => {
@@ -631,7 +637,7 @@ export default function App() {
       setKindred({ anchorId: star.id, ids: similar.map((s) => s.id) })
       // 내 별이 화면 가운데, 닮은 별들이 그 곁 궤도로 — 카드가 열린 뒤에도 보이게 맞춥니다
       setFocus({ pos: star.pos, dist: fitDistance(ORBIT_FAR * 1.15, true), pitch: 0.82, hold: 14000, key: Date.now() })
-      say('잔별이 떠올랐어요. 닮은 하루를 보낸 별들이 곁으로 모여요.')
+      say('잔별이 떠올랐어요. 별들이 나에게 모여요.')
       setTimeout(() => {
         setSelectedId(star.id)
         setCardOpen(true)
@@ -899,7 +905,7 @@ export default function App() {
         {!welcomeGone && ready && !tourOpen && !introOpen && <Welcome gone={welcomeGone} layout={welcomeLayout} />}
 
         <div className="bottom">
-          {ready && !tourOpen && !introOpen && !showCard && <TermsNotice />}
+          {ready && !tourOpen && !introOpen && !showCard && !mineMode && <TermsNotice />}
           <p className="creed">
             별거 아닌 줄 알았던 당신의 오늘이,
             <br />
