@@ -71,8 +71,10 @@ export function myConstellation(stars, myId, now = Date.now()) {
  * (내 잔별들은 '나의 성단' 목록에서 따로 볼 수 있어요.)
  * 닮은 별이 모자라면 같은 마음(감정)의 별로, 그래도 모자라면 최근 별로 채웁니다.
  */
-export function findKindred(stars, target, limit = 5) {
-  const others = stars.filter((s) => s.id !== target.id && s.authorId !== target.authorId)
+export function findKindred(stars, target, limit = 5, exclude = null) {
+  const others = stars.filter(
+    (s) => s.id !== target.id && s.authorId !== target.authorId && !(exclude && exclude.has(s.id))
+  )
   const picked = others
     .map((s) => ({ star: s, score: affinityOf(target, s) }))
     .filter((s) => s.score >= 3)

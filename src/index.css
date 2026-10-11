@@ -3548,3 +3548,19 @@ ul {
   font-weight: 500;
   color: var(--warm);
 }
+
+/* 곁에 모인 별 더 불러오기 */
+.kin .kinmore {
+  justify-content: center;
+  min-height: 40px;
+  margin: 4px 0 6px;
+  border: 1px dashed rgba(255, 200, 140, 0.35);
+  border-radius: 10px;
+  color: #ffe2c4;
+  font-size: var(--fs-xs);
+  text-align: center;
+}
+.kin .kinmore:hover {
+  border-style: solid;
+  background: rgba(255, 176, 103, 0.08);
+}

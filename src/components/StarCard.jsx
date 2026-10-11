@@ -36,7 +36,10 @@ export default function StarCard({
   onRemove,
   onClose,
   kin,
+  kinMore,
+  onMoreKin,
   backTo,
+  backIsMine,
   onOpenStar,
   onBack,
 }) {
@@ -193,16 +196,16 @@ export default function StarCard({
         {/* 닮은 별에서 왔다면 — 내 잔별로 한 번에 돌아가기 */}
         {backTo && onBack && (
           <button type="button" className="kinback" onClick={() => onBack(backTo)}>
-            ‹ 내 잔별로 돌아가기
+            {backIsMine ? '‹ 내 잔별로 돌아가기' : '‹ 이전 별로 돌아가기'}
           </button>
         )}
 
-        {/* 내 잔별 — 나와 닮은 하루를 보낸 다른 사람들의 별.
-            하늘에서도 내 별 곁으로 모여들지만, 손가락으로 고르기 쉽게 여기에도 나란히 둡니다. */}
-        {mine && kin && kin.length > 0 && (
-          <section className="kin" aria-label="나에게 모인 별">
+        {/* 이 별 곁으로 모인 별들 — 하늘에서도 곁으로 모여들지만, 손가락으로 고르기 쉽게 여기에도 나란히.
+            하나를 누르면 그 별 곁으로 또 다른 별들이 모여요. 꼬리에 꼬리를 물고 읽어 나가는 길입니다. */}
+        {kin && kin.length > 0 && (
+          <section className="kin" aria-label={mine ? '나에게 모인 별' : '이 별에 이어진 별'}>
             <h4>
-              나에게 모인 별 <b>{kin.length}</b>
+              {mine ? '나에게 모인 별' : '이 별에 이어진 별'} <b>{kin.length}</b>
             </h4>
             <ul>
               {kin.map((k) => (
@@ -219,6 +222,11 @@ export default function StarCard({
                 </li>
               ))}
             </ul>
+            {kinMore && (
+              <button type="button" className="kinmore" onClick={() => onMoreKin?.()}>
+                별 더 불러오기 +5
+              </button>
+            )}
           </section>
         )}
 

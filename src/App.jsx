@@ -61,8 +61,10 @@ const ANCHOR_CLEAR = 240
 const CARD_DOCK = 532 // 오른쪽 잔별 카드 (넓은 화면 492px + 여백)
 const PANEL_DOCK = 462 // 왼쪽 나의 성단 패널 (넓은 화면 430px + 여백)
 
-/** 내 잔별 곁으로 모여드는 닮은 별의 수 */
+/** 별 곁으로 처음 모여드는 닮은 별의 수 · '더 불러오기' 한 번에 늘어나는 수 · 최대 */
 const KIN_COUNT = 5
+const KIN_STEP = 5
+const KIN_MAX = 20
 
 /** 점수(0~10)를 궤도 반지름으로 */
 function orbitRadiusFor(score) {
@@ -140,9 +142,10 @@ export default function App() {
   const [selectedId, setSelectedId] = useState(null)
   const [cardOpen, setCardOpen] = useState(false) // 카드를 닫아도 줌인은 남는다
   const [mineMode, setMineMode] = useState(false) // 나의 성단 시점인가
-  const [kindred, setKindred] = useState({ anchorId: null, ids: [] })
-  // 닮은 별 목록에서 남의 별을 열었을 때, 돌아갈 내 잔별
-  const [kinOrigin, setKinOrigin] = useState(null)
+  // 지금 고른 별 곁으로 모인 별들 — more: 더 불러올 별이 남았는지
+  const [kindred, setKindred] = useState({ anchorId: null, ids: [], more: false, limit: KIN_COUNT })
+  // 꼬리에 꼬리를 물고 읽어 온 길 (이전 별들) — '이전 별로' 돌아갈 때 씁니다
+  const [kinTrail, setKinTrail] = useState([])
   const [focus, setFocus] = useState(null)
   const [ripple, setRipple] = useState(null)
   const [toast, setToast] = useState('')
@@ -451,8 +454,20 @@ export default function App() {
    * 잔별을 누르면 그 별이 화면의 중심이 되고, 닿아 있는 잔별들이 곁으로 모여듭니다.
    * 카드는 그 별 옆에 떠서, 어느 별의 글인지가 눈으로 이어집니다.
    */
+  /** 별 하나 곁으로 모일 별들을 고릅니다. 이미 지나온 별(trail)은 다시 부르지 않아요 */
+  const kinFor = useCallback(
+    (star, limit, trail = []) => {
+      // 이미 지나온 별과 내 잔별은 빼고 — 꼬리를 물고 읽는 건 다른 사람의 이야기니까요
+      const skip = new Set(trail)
+      for (const s of stars) if (s.authorId === me.id) skip.add(s.id)
+      const found = findKindred(stars, star, limit + 1, skip)
+      return { ids: found.slice(0, limit).map((s) => s.id), more: found.length > limit && limit < KIN_MAX }
+    },
+    [stars, me]
+  )
+
   const handleSelect = useCallback(
-    (id) => {
+    (id, opts = {}) => {
       setWelcomeGone(true)
       setShineOn(false) // 직접 고른 별 — '빛나는 별' 표시는 칩·이름표로 열었을 때만
 
@@ -480,23 +495,16 @@ export default function App() {
 
       setSelectedId(id)
       setCardOpen(true)
-      setKinOrigin(null)
       if (isNarrow) setPanelOpen(false)
 
+      /* 어떤 별을 열든, 그 별과 닮은 별들이 곁으로 모여듭니다.
+         모인 별을 누르면 그 별 곁으로 또 다른 별들이 모여서 — 꼬리에 꼬리를 물고 읽어 나갈 수 있어요. */
+      const trail = opts.trail || []
+      setKinTrail(trail)
+      const kin = kinFor(star, KIN_COUNT, trail)
+      setKindred({ anchorId: id, ids: kin.ids, more: kin.more, limit: KIN_COUNT })
       let outer = ANCHOR_CLEAR
-      if (star.authorId === me.id) {
-        // 내 잔별 — 나와 닮은 하루를 보낸 다른 사람의 별들이 곁으로 모여듭니다
-        const kin = findKindred(stars, star, KIN_COUNT)
-        setKindred({ anchorId: id, ids: kin.map((s) => s.id) })
-        for (const s of kin) outer = Math.max(outer, orbitRadiusFor(graph.scoreOf(id, s.id) || 6))
-      } else {
-        setKindred({ anchorId: null, ids: [] })
-        const reached = traceFrom(graph.adj, id, TRACE_DEPTH)
-        for (const [nid, depth] of reached.depthOf) {
-          if (depth === 1) outer = Math.max(outer, orbitRadiusFor(graph.scoreOf(id, nid)))
-          else if (depth === 2 && !isNarrow) outer = Math.max(outer, ORBIT_R2)
-        }
-      }
+      for (const kid of kin.ids) outer = Math.max(outer, orbitRadiusFor(graph.scoreOf(id, kid) || 6))
 
       setFocus({
         pos: star.pos, // 고른 별이 곧 화면의 중심
@@ -506,8 +514,21 @@ export default function App() {
         key: Date.now() + Math.random(),
       })
     },
-    [stars, selectedId, graph, isNarrow, fitDistance, readMap, me]
+    [stars, selectedId, graph, isNarrow, fitDistance, readMap, kinFor]
   )
+
+  /** 곁에 모인 별을 더 불러옵니다 — 다섯 개씩, 최대 스무 개까지 */
+  const moreKin = useCallback(() => {
+    const star = stars.find((s) => s.id === kindred.anchorId)
+    if (!star) return
+    const limit = Math.min(KIN_MAX, kindred.limit + KIN_STEP)
+    const kin = kinFor(star, limit, kinTrail)
+    setKindred({ anchorId: star.id, ids: kin.ids, more: kin.more, limit })
+    let outer = ANCHOR_CLEAR
+    for (const kid of kin.ids) outer = Math.max(outer, orbitRadiusFor(graph.scoreOf(star.id, kid) || 6))
+    setFocus({ pos: star.pos, dist: fitDistance(outer * 1.15, true), pitch: 0.82, hold: 14000, key: Date.now() })
+    say(`별 ${kin.ids.length}개가 모였어요`)
+  }, [stars, kindred, kinTrail, kinFor, graph, fitDistance, say])
 
   const closeContact = useCallback(() => setContactOpen(false), [])
 
@@ -603,7 +624,7 @@ export default function App() {
     setSelectedId(null)
     setCardOpen(false)
     setMineMode(false)
-    setKindred({ anchorId: null, ids: [] })
+    setKindred({ anchorId: null, ids: [], more: false, limit: KIN_COUNT })
     setFocus({ pos: { x: 0, y: 0, z: 0 }, dist: wholeGalaxy(), pitch: 0.92, hold: 0, key: Date.now() })
     setWelcomeGone(true)
   }, [wholeGalaxy])
@@ -633,8 +654,14 @@ export default function App() {
         say(msg, 3600)
         throw err // 입력창이 글을 지우지 않도록
       }
-      const similar = findKindred(stars, star, KIN_COUNT)
-      setKindred({ anchorId: star.id, ids: similar.map((s) => s.id) })
+      const found = findKindred(stars, star, KIN_COUNT + 1)
+      setKinTrail([])
+      setKindred({
+        anchorId: star.id,
+        ids: found.slice(0, KIN_COUNT).map((s) => s.id),
+        more: found.length > KIN_COUNT,
+        limit: KIN_COUNT,
+      })
       // 내 별이 화면 가운데, 닮은 별들이 그 곁 궤도로 — 카드가 열린 뒤에도 보이게 맞춥니다
       setFocus({ pos: star.pos, dist: fitDistance(ORBIT_FAR * 1.15, true), pitch: 0.82, hold: 14000, key: Date.now() })
       say('잔별이 떠올랐어요. 별들이 나에게 모여요.')
@@ -798,7 +825,7 @@ export default function App() {
     setCardOpen(false)
     setReReading(null)
     setMineMode(false)
-    setKindred({ anchorId: null, ids: [] })
+    setKindred({ anchorId: null, ids: [], more: false, limit: KIN_COUNT })
     setWelcomeGone(true)
     setTourStep(null)
     setTourOpen(true)
@@ -936,18 +963,16 @@ export default function App() {
             onBlock={handleBlock}
             onNotice={say}
             onAllowFeature={setAllowFeature}
-            kin={
-              kinMode && selected.authorId === me.id
-                ? kindred.ids.map((kid) => stars.find((s) => s.id === kid)).filter(Boolean)
-                : null
+            kin={kinMode ? kindred.ids.map((kid) => stars.find((s) => s.id === kid)).filter(Boolean) : null}
+            kinMore={kinMode && kindred.more}
+            onMoreKin={moreKin}
+            backTo={kinTrail.length ? kinTrail[kinTrail.length - 1] : null}
+            backIsMine={
+              kinTrail.length > 0 &&
+              stars.find((s) => s.id === kinTrail[kinTrail.length - 1])?.authorId === me.id
             }
-            backTo={kinOrigin && kinOrigin !== selected.id ? kinOrigin : null}
-            onOpenStar={(kid) => {
-              const from = selected.id
-              handleSelect(kid)
-              setKinOrigin(from)
-            }}
-            onBack={(mid) => handleSelect(mid)}
+            onOpenStar={(kid) => handleSelect(kid, { trail: [...kinTrail, selected.id] })}
+            onBack={(prev) => handleSelect(prev, { trail: kinTrail.slice(0, -1) })}
             onRemove={handleRemoveStar}
             onClose={closeCard}
           />
