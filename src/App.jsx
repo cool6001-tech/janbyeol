@@ -16,6 +16,7 @@ import { buildGraph, traceFrom, reachOf } from './lib/graph.js'
 import { distance, distanceToFit, cosmosDistance, FOCAL } from './lib/geometry.js'
 import { GALAXY_RADIUS } from './lib/galaxy.js'
 import { onboarding, takeAuthNotice, storage } from './lib/storage.js'
+import { startVisitClock, countShareArrival } from './lib/visit.js'
 
 /**
  * 하늘을 보는 두 가지 시점
@@ -240,6 +241,12 @@ export default function App() {
     setToast(message)
     clearTimeout(toastTimer.current)
     toastTimer.current = setTimeout(() => setToast(''), ms)
+  }, [])
+
+  /* 트랙션 리포트용 — 머문 시간(30초마다 한 번)과 공유 링크 도착 수. 무엇을 읽었는지는 보내지 않습니다 */
+  useEffect(() => {
+    countShareArrival()
+    startVisitClock()
   }, [])
 
   /* 카카오/구글로 다른 기기의 성단을 불러온 직후 — 한 번만 알려줍니다 */

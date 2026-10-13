@@ -156,6 +156,9 @@ Deno.serve(async (req) => {
     }
   }
 
+  // 머문 시간 기록도 내 계정으로 (트랙션 리포트의 방문 이력이 끊기지 않게). 표가 없으면 조용히 넘어갑니다
+  await admin.from('visit_sessions').update({ user_id: to.id }).eq('user_id', from.id)
+
   /* ── 빈 익명 계정 정리 (남은 행은 cascade 로 함께 사라집니다) ── */
   const { error: delErr } = await admin.auth.admin.deleteUser(from.id)
   if (delErr) console.error('[잔별] 익명 계정을 지우지 못했습니다', delErr.message)

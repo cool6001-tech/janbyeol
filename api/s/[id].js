@@ -110,7 +110,8 @@ export default async function handler(req, res) {
           : '별거 아닌 줄 알았던 당신의 오늘이, 이곳에선 누군가의 밤을 비추는 잔별이 됩니다.',
       image: `${BASE}/api/card/${encodeURIComponent(star.id)}.jpg`,
       url: `${BASE}/s/${encodeURIComponent(star.id)}`,
-      redirectTo: `${BASE}/?star=${encodeURIComponent(star.id)}`,
+      // from=share — 앱이 '공유 링크로 들어온 수'를 날짜별 합계로만 셉니다 (스크래퍼는 스크립트를 실행하지 않아 세지 않음)
+      redirectTo: `${BASE}/?star=${encodeURIComponent(star.id)}&from=share`,
     })
   )
 }
