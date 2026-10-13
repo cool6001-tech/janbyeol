@@ -16,8 +16,12 @@
       "destination": "/api/s/:id"
     },
     {
-      "source": "/((?!api/|terms|privacy).*)",
-      "destination": "/index.html"
+      "source": "/admin",
+      "destination": "/"
+    },
+    {
+      "source": "/((?!api/|assets/|terms|privacy|admin$).*)",
+      "destination": "/"
     }
   ],
   "headers": [
