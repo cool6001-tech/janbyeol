@@ -124,7 +124,7 @@ export default function Composer({ onSubmit, onFocus, compact = false, featurePr
         <input id="photo-input" type="file" accept="image/*" hidden ref={fileRef} onChange={pickFile} />
         <span className="spacer" />
         <button className="send" type="submit" disabled={!text.trim()}>
-          잔별 띄우기
+          별 띄우기
         </button>
       </div>
 
@@ -142,14 +142,14 @@ export default function Composer({ onSubmit, onFocus, compact = false, featurePr
             <span>
               {askOnce ? (
                 <>
-                  앞으로 띄우는 내 잔별을 <b>잔별 공식 계정에 소개</b>해도 좋아요
+                  앞으로 띄우는 내 별을 <b>잔별 공식 계정에 소개</b>해도 좋아요
                   <small>
                     이번 한 번만 물어요. 이름 없이 글과 온기 수만 실리고, ‘내가 띄운 별’에서 언제든 바꾸거나 거둘 수 있어요.
                   </small>
                 </>
               ) : (
                 <>
-                  이 잔별은 <b>잔별 공식 계정에 소개</b>되어도 좋아요
+                  이 별은 <b>잔별 공식 계정에 소개</b>되어도 좋아요
                   <small>이름 없이 글과 온기 수만 실립니다. 나중에 언제든 거둘 수 있어요.</small>
                 </>
               )}
@@ -158,7 +158,7 @@ export default function Composer({ onSubmit, onFocus, compact = false, featurePr
           <p className="consent-note">
             띄우면 <a href="/terms.html" target="_blank" rel="noreferrer">이용약관</a>과{' '}
             <a href="/privacy.html" target="_blank" rel="noreferrer">개인정보처리방침</a>에 동의하는 것으로 보며,
-            만 14세 이상만 이용할 수 있습니다. 띄운 잔별은 모두에게 공개됩니다.
+            만 14세 이상만 이용할 수 있습니다. 띄운 별은 모두에게 공개됩니다.
           </p>
         </div>
       )}

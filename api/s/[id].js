@@ -87,7 +87,7 @@ export default async function handler(req, res) {
     return res.status(200).send(
       page({
         title: '잔별 — 사소한 하루가 별이 되어 떠오르는 곳',
-        description: '별거 아닌 줄 알았던 당신의 오늘이, 이곳에선 누군가의 밤을 비추는 잔별이 됩니다.',
+        description: '별거 아닌 줄 알았던 당신의 오늘이, 이곳에선 누군가의 밤을 비추는 별이 됩니다.',
         image: `${BASE}/og-image.png?v=1`,
         url: `${BASE}/`,
         redirectTo: `${BASE}/`,
@@ -106,8 +106,8 @@ export default async function handler(req, res) {
       title: `“${short}” — 잔별`,
       description:
         star.warmth > 0
-          ? `${star.warmth}명의 밤을 비춘 잔별이에요. 당신의 오늘도 여기에 띄워보세요.`
-          : '별거 아닌 줄 알았던 당신의 오늘이, 이곳에선 누군가의 밤을 비추는 잔별이 됩니다.',
+          ? `${star.warmth}명의 밤을 비춘 별이에요. 당신의 오늘도 여기에 띄워보세요.`
+          : '별거 아닌 줄 알았던 당신의 오늘이, 이곳에선 누군가의 밤을 비추는 별이 됩니다.',
       image: `${BASE}/api/card/${encodeURIComponent(star.id)}.jpg`,
       url: `${BASE}/s/${encodeURIComponent(star.id)}`,
       // from=share — 앱이 '공유 링크로 들어온 수'를 날짜별 합계로만 셉니다 (스크래퍼는 스크립트를 실행하지 않아 세지 않음)

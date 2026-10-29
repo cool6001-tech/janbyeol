@@ -48,7 +48,7 @@ const STEPS = [
     id: 'compose',
     kind: 'target',
     target: '.composer',
-    eyebrow: '잔별 띄우기',
+    eyebrow: '별 띄우기',
     title: '당신의 이야기도 띄워보세요',
     body: '한 줄만이라도 충분하고, 마음에 남은 이야기를 길게 써 내려가도 좋아요. 사진도 한 장 담을 수 있어요. 띄우는 순간, 닮은 마음들이 곁으로 모여듭니다.',
   },
@@ -270,7 +270,7 @@ export default function Tutorial({ narrow, reducedMotion, onStep, onInset, onFin
           <h2 id="tour-title-prologue">
             눈부시게 화려하지 않아도 괜찮아요.
             <br />
-            우리는 모두 서로를 은은하게 비추는 잔별이니까요.
+            우리는 모두 서로를 은은하게 비추는 별이니까요.
           </h2>
           <p>
             잔별은 사소한 하루와 마음에 남은 이야기를 띄우고,

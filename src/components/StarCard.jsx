@@ -6,6 +6,17 @@ import { emotionOf, EMOTION_COLORS, cssColor } from '../lib/emotionColor.js'
 import StarGuard from './StarGuard.jsx'
 import { isFeatureOnce } from '../lib/policy.js'
 
+/**
+ * 카드 공유 동의를 받기 시작한 때 (한국 시간 2026-10-30 0시).
+ * 이 전에 뜬 별은 운영자가 띄운 별이 대부분이라 문장을 카드에 그대로 담고,
+ * 이후에 뜬 남의 별은 '공식 계정 소개'를 허락한 별만 문장을 담습니다.
+ */
+const CARD_CONSENT_FROM = Date.parse('2026-10-30T00:00:00+09:00')
+const isBeforeCardConsent = (createdAt) => {
+  const t = Date.parse(createdAt)
+  return Number.isFinite(t) && t < CARD_CONSENT_FROM
+}
+
 /** 빈 줄로 나뉜 문단들 — 한 줄짜리 줄바꿈은 문단 안에 그대로 남습니다 */
 function paragraphsOf(text = '') {
   const parts = text
@@ -107,6 +118,7 @@ export default function StarCard({
    * 카드 그리는 코드는 무거워서 누를 때만 불러옵니다 (처음 화면 무게에 더해지지 않게).
    * 남의 별 문장은 '공식 계정에 소개되어도 좋아요'를 허락한 별만 카드에 담고,
    * 허락하지 않은 별은 문장 대신 '누군가의 사소한 하루'로만 적습니다.
+   * 단, 카드 기능이 생기기 전에 뜬 별(대부분 운영자가 띄운 별)은 문장을 그대로 담습니다.
    */
   const keepAsCard = async () => {
     try {
@@ -120,9 +132,10 @@ export default function StarCard({
           createdAt: star.createdAt,
           empathyCount: star.warmth || 0,
           color: EMOTION_COLORS[emotion],
-          allowCardShare: star.allowFeature === true,
+          allowCardShare: star.allowFeature === true || isBeforeCardConsent(star.createdAt),
         },
-        mine ? 'mine' : 'comfort'
+        mine ? 'mine' : 'comfort',
+        { onLinkShare: share }
       )
     } catch {
       onNotice?.('카드를 열지 못했어요. 잠시 뒤 다시 눌러 주세요.')
@@ -170,7 +183,7 @@ export default function StarCard({
             {emotionOf(star)}
           </em>
           <em>
-            {mine ? '나의 잔별 · ' : ''}
+            {mine ? '나의 별 · ' : ''}
             {relativeWhen(star.createdAt)}
           </em>
           {/* 하늘의 별길을 놓쳤더라도, 여는 순간 바로 알 수 있게 */}
@@ -184,6 +197,20 @@ export default function StarCard({
           {paragraphsOf(star.text).map((para, i) => (
             <p key={i}>{para}</p>
           ))}
+        </div>
+        {/* 온기 — 글을 다 읽은 바로 그 자리에서 건넬 수 있게, 글 끝에 둡니다.
+            온기는 남이 건네는 것 — 내 별에는 버튼 없이 받은 온기만 보여줍니다.
+            내가 내 별에 온기를 더하면 '몇 명의 밤을 비췄어요'가 거짓말이 되니까요. */}
+        <div className="warmline">
+          {!mine && (
+            <button className={`warmbtn${warmed ? ' on' : ''}`} onClick={() => onWarm(star.id)}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                <path d="M12 3c2.5 3.2 1 4.8 0 6-1.4 1.7-2.6 3-2.6 5A4.6 4.6 0 0 0 12 19a4.6 4.6 0 0 0 4.6-5c0-1.5-.8-2.6-1.6-3.6" />
+              </svg>
+              온기 더하기
+            </button>
+          )}
+          <span className="count">{mine ? '받은 온기' : '온기'} {star.warmth || 0}</span>
         </div>
         {/* 태그는 화면에 적지 않습니다.
             글 끝에 '바다 · 피로 · 일' 같은 낱말이 붙으면, 방금 읽은 이야기를
@@ -224,7 +251,7 @@ export default function StarCard({
         {/* 닮은 별에서 왔다면 — 내 잔별로 한 번에 돌아가기 */}
         {backTo && onBack && (
           <button type="button" className="kinback" onClick={() => onBack(backTo)}>
-            {backIsMine ? '‹ 내 잔별로 돌아가기' : '‹ 이전 별로 돌아가기'}
+            {backIsMine ? '‹ 내 별로 돌아가기' : '‹ 이전 별로 돌아가기'}
           </button>
         )}
 
@@ -232,7 +259,7 @@ export default function StarCard({
             하나를 누르면 그 별 곁으로 또 다른 별들이 모여요. 꼬리에 꼬리를 물고 읽어 나가는 길입니다. */}
         {kin && kin.length === 0 && (
           <p className="kin-empty">
-            아직 이 별과 닮은 별이 많지 않아요. 잔별이 쌓일수록 더 많은 별이 모여들어요.
+            아직 이 별과 닮은 별이 많지 않아요. 별이 쌓일수록 더 많은 별이 모여들어요.
           </p>
         )}
 
@@ -265,34 +292,13 @@ export default function StarCard({
         )}
 
         <div className="warmrow">
-          {/* 온기는 남이 건네는 것 — 내 별에는 버튼 없이 받은 온기만 보여줍니다.
-              내가 내 별에 온기를 더하면 '몇 명의 밤을 비췄어요'가 거짓말이 되니까요. */}
-          {!mine && (
-            <button className={`warmbtn${warmed ? ' on' : ''}`} onClick={() => onWarm(star.id)}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                <path d="M12 3c2.5 3.2 1 4.8 0 6-1.4 1.7-2.6 3-2.6 5A4.6 4.6 0 0 0 12 19a4.6 4.6 0 0 0 4.6-5c0-1.5-.8-2.6-1.6-3.6" />
-              </svg>
-              온기 더하기
-            </button>
-          )}
-          <span className="count">{mine ? '받은 온기' : '온기'} {star.warmth || 0}</span>
-          {/* 종이비행기 — 마음에 닿은 별을 친구에게 바로 띄워 보냅니다 */}
-          <button className="sharebtn" onClick={share} aria-label="이 잔별 친구에게 공유하기">
+          {/* 종이비행기 — 누르면 카드 창이 열립니다. 이미지 카드 · 움직이는 카드 · 링크 보내기를 한곳에서 */}
+          <button className="sharebtn" onClick={keepAsCard} aria-label="이 별 공유하기">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21.5 2.5 10.6 13.4" />
               <path d="M21.5 2.5 14.6 21.2l-4-7.8-7.8-4z" />
             </svg>
             공유하기
-          </button>
-        </div>
-
-        {/* 카드로 간직하기 — 공유하기 줄이 좁아서 한 줄 아래에 조용히 둡니다 */}
-        <div className="keeprow">
-          <button type="button" className="keepbtn" onClick={keepAsCard}>
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 2.5c.6 4.6 2.3 7.3 9.5 9.5-7.2 2.2-8.9 4.9-9.5 9.5-.6-4.6-2.3-7.3-9.5-9.5 7.2-2.2 8.9-4.9 9.5-9.5z" />
-            </svg>
-            {mine ? '내 별 카드로 간직하기' : '나를 비춘 별 카드로 간직하기'}
           </button>
         </div>
 
@@ -306,12 +312,12 @@ export default function StarCard({
             허락은 처음 띄울 때 한 번 묻고, 전체 선택은 나의 성단에서 바꿉니다 (약관 제9조). */}
         {mine && onAllowFeature && star.allowFeature === true && (
           <p className="featureon">
-            <span>공식 계정에 소개될 수 있는 잔별이에요</span>
+            <span>공식 계정에 소개될 수 있는 별이에요</span>
             <button
               type="button"
               onClick={() => {
                 onAllowFeature(star.id, false)
-                onNotice?.('이 잔별의 소개 허락을 거뒀어요')
+                onNotice?.('이 별의 소개 허락을 거뒀어요')
               }}
             >
               이 별만 거두기
@@ -328,7 +334,7 @@ export default function StarCard({
               onChange={(e) => {
                 if (!e.target.checked) return
                 onAllowFeature(star.id, true)
-                onNotice?.('이 잔별은 공식 계정에 소개될 수 있어요')
+                onNotice?.('이 별은 공식 계정에 소개될 수 있어요')
               }}
             />
             <span>잔별 공식 계정에 소개되어도 좋아요</span>

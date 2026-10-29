@@ -91,18 +91,43 @@ function project(p, th) {
   return { x: CX + x * sc, y: CY + y * sc, sc };
 }
 
+/** 카드에 옮길 글 다듬기 — 빈 줄·앞뒤 공백을 걷어내고, 문단 사이는 한 줄로만 */
+export function cleanText(text = "") {
+  return String(text)
+    .replace(/\r\n?/g, "\n")
+    .replace(/[\u200B-\u200D\uFEFF]/g, "")
+    .split("\n")
+    .map((l) => l.replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .join("\n");
+}
+
 function wrapLines(ctx, text, maxW, maxLines = 5) {
   const lines = [];
-  for (const para of text.split("\n")) {
+  for (const para of cleanText(text).split("\n")) {
     let line = "";
     for (const w of para.split(" ")) {
-      const t = line ? line + " " + w : w;
-      if (ctx.measureText(t).width > maxW && line) { lines.push(line); line = w; } else line = t;
+      // 띄어쓰기 없이 아주 긴 낱말은 글자 단위로 잘라 넣습니다 (화면 밖으로 넘치지 않게)
+      for (const piece of splitLongWord(ctx, w, maxW)) {
+        const t = line ? line + " " + piece : piece;
+        if (ctx.measureText(t).width > maxW && line) { lines.push(line); line = piece; } else line = t;
+      }
     }
-    lines.push(line);
+    if (line) lines.push(line);
   }
+  if (!lines.length) lines.push("");
   if (lines.length > maxLines) { lines.length = maxLines; lines[maxLines - 1] = lines[maxLines - 1].replace(/.{0,2}$/, "…"); }
   return lines;
+}
+
+function splitLongWord(ctx, word, maxW) {
+  if (ctx.measureText(word).width <= maxW) return [word];
+  const out = []; let cur = "";
+  for (const ch of word) {
+    if (ctx.measureText(cur + ch).width > maxW && cur) { out.push(cur); cur = ch; } else cur += ch;
+  }
+  if (cur) out.push(cur);
+  return out;
 }
 
 function spaced(ctx, txt, x, y, sp) {

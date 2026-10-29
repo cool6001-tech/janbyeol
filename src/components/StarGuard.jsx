@@ -64,7 +64,7 @@ export default function StarGuard({ star, onReport, onBlock, onDone }) {
     setBusy(true)
     try {
       await onBlock(star.authorId)
-      onDone?.('이 사람의 잔별은 이제 보이지 않아요.')
+      onDone?.('이 사람의 별은 이제 보이지 않아요.')
     } catch {
       onDone?.('지금은 처리하지 못했어요. 잠시 뒤에 다시 해주세요.')
     } finally {
@@ -96,7 +96,7 @@ export default function StarGuard({ star, onReport, onBlock, onDone }) {
                 이 글이 불편해요
               </button>
               <button role="menuitem" onClick={() => setMode('block')}>
-                이 사람의 잔별 그만 보기
+                이 사람의 별 그만 보기
               </button>
             </>
           )}
@@ -118,7 +118,7 @@ export default function StarGuard({ star, onReport, onBlock, onDone }) {
           {mode === 'block' && (
             <>
               <p className="guardtitle">
-                이 사람이 띄운 잔별은 앞으로 당신의 하늘에 뜨지 않습니다.
+                이 사람이 띄운 별은 앞으로 당신의 하늘에 뜨지 않습니다.
                 <br />
                 ‘내가 띄운 별’에서 언제든 되돌릴 수 있어요.
               </p>

@@ -604,7 +604,7 @@ export default function App() {
       setTourOpen(false) // 보러 온 별이 있는데 안내부터 띄우지 않습니다
       handleSelect(id)
     } else {
-      say('그 잔별은 이미 하늘에서 내려갔어요')
+      say('그 별은 이미 하늘에서 내려갔어요')
     }
     window.history.replaceState(null, '', window.location.pathname)
   }, [ready, stars, handleSelect, say])
@@ -641,7 +641,7 @@ export default function App() {
     setCardOpen(false)
     const mine = constellation.mine
     if (mine.length === 0) {
-      say('아직 띄운 잔별이 없어요. 한 줄만이라도 띄워보세요.')
+      say('아직 띄운 별이 없어요. 한 줄만이라도 띄워보세요.')
       return
     }
     const sum = mine.reduce(
@@ -663,7 +663,7 @@ export default function App() {
       hold: 9000,
       key: Date.now(),
     })
-    say('내가 띄운 잔별만 밝혀 두었어요 — 별 하나를 눌러보세요')
+    say('내가 띄운 별만 밝혀 두었어요 — 별 하나를 눌러보세요')
   }, [constellation, say, fitDistance, wholeGalaxy])
 
   /** 전체 은하로 — 모두의 잔별이 다시 떠오르고 카메라가 제자리로 */
@@ -714,7 +714,7 @@ export default function App() {
       refineKin(star.id, KIN_COUNT, [], true)
       // 내 별이 화면 가운데, 닮은 별들이 그 곁 궤도로 — 카드가 열린 뒤에도 보이게 맞춥니다
       setFocus({ pos: star.pos, dist: fitDistance(ORBIT_FAR * 1.15, true), pitch: 0.82, hold: 14000, key: Date.now() })
-      say('잔별이 떠올랐어요. 별들이 나에게 모여요.')
+      say('별이 떠올랐어요. 별들이 나에게 모여요.')
       setTimeout(() => {
         setSelectedId(star.id)
         setCardOpen(true)
@@ -986,7 +986,7 @@ export default function App() {
           <p className="creed">
             별거 아닌 줄 알았던 당신의 오늘이,
             <br />
-            이곳에선 누군가의 밤을 비추는 잔별이 됩니다.
+            이곳에선 누군가의 밤을 비추는 별이 됩니다.
           </p>
           <Composer
             onSubmit={handleCreate}

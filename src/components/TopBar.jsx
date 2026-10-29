@@ -53,7 +53,7 @@ export default function TopBar({ clusterCount, mineMode, onToggleMine, onCosmos,
       <div className="topright">
         {clusterCount > 0 && !mineMode && (
           <span className="chip warmish static" aria-live="polite">
-            공감 성단 · 닮은 잔별 {clusterCount}
+            공감 성단 · 닮은 별 {clusterCount}
           </span>
         )}
 

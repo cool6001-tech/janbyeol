@@ -86,8 +86,8 @@ export default function ConstellationPanel({
           <h2>내가 띄운 별</h2>
           <p>
             {sheet && !open
-              ? `잔별 ${count} · 온기 ${warmth} — 눌러서 내 잔별 보기`
-              : '지금 하늘에는 내가 띄운 잔별만 밝혀져 있어요'}
+              ? `별 ${count} · 온기 ${warmth} — 눌러서 내 별 보기`
+              : '지금 하늘에는 내가 띄운 별만 밝혀져 있어요'}
           </p>
         </div>
         {onClose && open && (
@@ -100,7 +100,7 @@ export default function ConstellationPanel({
       <div className="panelbody">
         {count === 0 ? (
           <p className="empty">
-            아직 띄운 잔별이 없어요.
+            아직 띄운 별이 없어요.
             <br />
             아래 입력창에 나의 이야기를 남겨보세요. 한 줄만이라도 충분해요.
           </p>
@@ -109,7 +109,7 @@ export default function ConstellationPanel({
             <div className="figures">
               <div className="figure">
                 <b>{count}</b>
-                <span>띄운 잔별</span>
+                <span>띄운 별</span>
               </div>
               <div className="figure warm">
                 <b>{warmth}</b>
@@ -141,7 +141,7 @@ export default function ConstellationPanel({
             </section>
             {brightest && (
               <button className="brightest" onClick={() => onSelectStar(brightest.id)}>
-                <span className="eyebrow">가장 밝은 잔별</span>
+                <span className="eyebrow">가장 밝은 별</span>
                 <p>{brightest.text}</p>
                 <em>
                   별거 아니라 생각한 이 한 줄이, {brightest.warmth}명의 밤을 비췄어요.
@@ -199,18 +199,18 @@ export default function ConstellationPanel({
                     await onFeaturePref(on)
                     onNotice?.(
                       on
-                        ? '앞으로 띄우는 잔별은 공식 계정에 소개될 수 있어요'
-                        : '소개 허락을 거뒀어요. 지금까지 허락한 잔별도 모두 거뒀어요.'
+                        ? '앞으로 띄우는 별은 공식 계정에 소개될 수 있어요'
+                        : '소개 허락을 거뒀어요. 지금까지 허락한 별도 모두 거뒀어요.'
                     )
                   } catch {
                     onNotice?.('지금은 바꾸지 못했어요. 잠시 뒤에 다시 해주세요.')
                   }
                 }}
               />
-              <span>앞으로 띄우는 잔별을 잔별 공식 계정에 소개해도 좋아요</span>
+              <span>앞으로 띄우는 별을 잔별 공식 계정에 소개해도 좋아요</span>
             </label>
             <p className="featurepref-note">
-              이름 없이 글과 온기 수만 실립니다. 끄면 지금까지 허락한 잔별도 모두 거둬요.
+              이름 없이 글과 온기 수만 실립니다. 끄면 지금까지 허락한 별도 모두 거둬요.
             </p>
           </section>
         )}
@@ -220,11 +220,11 @@ export default function ConstellationPanel({
         {roadCount > 0 && (
           <footer className="panelfoot">
             <p>
-              별길에 잔별 <b>{roadCount}</b>개. 읽은 순서대로 이어진 길이에요 — 나에게만 보입니다.
+              별길에 별 <b>{roadCount}</b>개. 읽은 순서대로 이어진 길이에요 — 나에게만 보입니다.
             </p>
             <button
               onClick={() => {
-                if (window.confirm('별길을 지울까요? 띄운 잔별은 그대로 남습니다.')) onClearRoad?.()
+                if (window.confirm('별길을 지울까요? 띄운 별은 그대로 남습니다.')) onClearRoad?.()
               }}
             >
               별길 지우기

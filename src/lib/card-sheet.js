@@ -24,18 +24,19 @@ const CSS = `
 
 function el(html) { const d = document.createElement("div"); d.innerHTML = html.trim(); return d.firstChild; }
 
-export async function openCardSheet(star, type = "mine") {
+export async function openCardSheet(star, type = "mine", { onLinkShare } = {}) {
   if (!document.getElementById("jb-sheet-css")) {
     const st = document.createElement("style"); st.id = "jb-sheet-css"; st.textContent = CSS; document.head.appendChild(st);
   }
   const bg = el(`<div class="jb-sheet-bg"><div class="jb-sheet">
-      <h3>${type === "comfort" ? "나를 비춘 별을 간직해요" : "내 별을 카드로 간직해요"}</h3>
+      <h3>${type === "comfort" ? "나를 비춘 별을 나눠요" : "내 별을 나눠요"}</h3>
       <p>스토리에 올린 뒤, 링크 스티커에 복사된 주소를 붙여 주세요</p>
       <img class="jb-prev" alt="별 카드 미리보기">
       <button class="jb-btn p" data-act="img">${isMobileDevice() ? "이미지로 저장·공유" : "이미지로 저장하기"}</button>
       <button class="jb-btn s" data-act="vid">움직이는 카드 만들기</button>
       <div class="jb-bar" hidden><i></i></div>
       <div class="jb-note" hidden></div>
+      <button class="jb-btn s" data-act="link" hidden>링크로 보내기</button>
       <button class="jb-btn s" data-act="close" style="border:0;color:#7d83a8">닫기</button>
     </div></div>`);
   document.body.appendChild(bg);
@@ -44,6 +45,8 @@ export async function openCardSheet(star, type = "mine") {
   const close = () => bg.remove();
   bg.addEventListener("click", (e) => { if (e.target === bg) close(); });
   $('[data-act="close"]').onclick = close;
+  // 예전 '공유하기' — 글 한 줄이 담긴 미리보기와 함께 링크를 보냅니다 (카카오톡에서 바로 열려요)
+  if (onLinkShare) { const lb = $('[data-act="link"]'); lb.hidden = false; lb.onclick = () => onLinkShare(); }
 
   if (isInAppBrowser()) note("카카오톡·인스타그램 앱 안에서는 저장이 안 될 수 있어요. 오른쪽 위 메뉴에서 ‘다른 브라우저로 열기’를 눌러 주세요.");
 

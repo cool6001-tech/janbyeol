@@ -56,7 +56,7 @@ export default function Account({ me, onNotice }) {
   const unblock = async (user) => {
     await storage.unblock(user.id)
     setBlocked((prev) => prev.filter((b) => b.id !== user.id))
-    onNotice?.('다시 이 사람의 잔별이 보입니다. 새로고침하면 하늘에 떠요.')
+    onNotice?.('다시 이 사람의 별이 보입니다. 새로고침하면 하늘에 떠요.')
   }
 
   const anonymous = me.isAnonymous !== false
@@ -98,7 +98,7 @@ export default function Account({ me, onNotice }) {
             <p className="acctnote">
               지금 이 성단은 이 브라우저에만 있어요.
               <br />
-              폰을 바꾸거나 기록을 지우면 띄운 잔별이 사라집니다.
+              폰을 바꾸거나 기록을 지우면 띄운 별이 사라집니다.
             </p>
             <div className="acctkeep">
               <button onClick={() => keep('kakao')}>카카오로 내 성단 지키기</button>
@@ -107,7 +107,7 @@ export default function Account({ me, onNotice }) {
             <p className="acctfine">
               다른 기기에서 이미 지킨 성단이 있다면 같은 버튼을 누르세요.
               <br />
-              원래 성단으로 들어가고, 이 기기에서 띄운 잔별도 함께 옮겨 담아요.
+              원래 성단으로 들어가고, 이 기기에서 띄운 별도 함께 옮겨 담아요.
             </p>
           </div>
         )}
@@ -143,7 +143,7 @@ export function AccountFooter({ onNotice }) {
     if (
       !window.confirm(
         '계정을 지울까요?\n\n' +
-          '띄운 잔별과 전한 온기, 올린 사진이 모두 사라지고 되돌릴 수 없습니다.\n\n' +
+          '띄운 별과 전한 온기, 올린 사진이 모두 사라지고 되돌릴 수 없습니다.\n\n' +
           '별 하나만 내리고 싶다면, 그 별을 열어 「이 별 거두기」를 쓰세요.'
       )
     )

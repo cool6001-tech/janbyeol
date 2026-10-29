@@ -175,7 +175,7 @@ async function resolveUser() {
       if (error) throw error
       authNotice =
         res?.moved > 0
-          ? `다시 만났어요. 이 기기에서 띄운 잔별 ${res.moved}개도 내 성단에 함께 담았어요.`
+          ? `다시 만났어요. 이 기기에서 띄운 별 ${res.moved}개도 내 성단에 함께 담았어요.`
           : '다시 만났어요. 다른 기기에서 지킨 성단을 그대로 불러왔어요.'
     } catch (err) {
       console.error('[잔별] 이 기기의 별을 옮기지 못했습니다.', err)
