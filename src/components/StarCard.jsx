@@ -101,6 +101,34 @@ export default function StarCard({
     }
   }
 
+  /**
+   * 카드로 간직하기 — 인스타그램 스토리에 올리기 좋은 9:16 이미지와 움직이는 영상.
+   * 링크 공유(위의 share)는 그대로 두고, 그 옆에 하나 더 둡니다.
+   * 카드 그리는 코드는 무거워서 누를 때만 불러옵니다 (처음 화면 무게에 더해지지 않게).
+   * 남의 별 문장은 '공식 계정에 소개되어도 좋아요'를 허락한 별만 카드에 담고,
+   * 허락하지 않은 별은 문장 대신 '누군가의 사소한 하루'로만 적습니다.
+   */
+  const keepAsCard = async () => {
+    try {
+      const { openCardSheet } = await import('../lib/card-sheet.js')
+      const emotion = emotionOf(star)
+      openCardSheet(
+        {
+          id: star.id,
+          text: star.text,
+          category: emotion,
+          createdAt: star.createdAt,
+          empathyCount: star.warmth || 0,
+          color: EMOTION_COLORS[emotion],
+          allowCardShare: star.allowFeature === true,
+        },
+        mine ? 'mine' : 'comfort'
+      )
+    } catch {
+      onNotice?.('카드를 열지 못했어요. 잠시 뒤 다시 눌러 주세요.')
+    }
+  }
+
   return (
     <section className={`card${open ? ' open' : ''}`} aria-live="polite">
       <span className="grip" aria-hidden="true" />
@@ -255,6 +283,16 @@ export default function StarCard({
               <path d="M21.5 2.5 14.6 21.2l-4-7.8-7.8-4z" />
             </svg>
             공유하기
+          </button>
+        </div>
+
+        {/* 카드로 간직하기 — 공유하기 줄이 좁아서 한 줄 아래에 조용히 둡니다 */}
+        <div className="keeprow">
+          <button type="button" className="keepbtn" onClick={keepAsCard}>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 2.5c.6 4.6 2.3 7.3 9.5 9.5-7.2 2.2-8.9 4.9-9.5 9.5-.6-4.6-2.3-7.3-9.5-9.5 7.2-2.2 8.9-4.9 9.5-9.5z" />
+            </svg>
+            {mine ? '내 별 카드로 간직하기' : '나를 비춘 별 카드로 간직하기'}
           </button>
         </div>
 

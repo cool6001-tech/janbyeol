@@ -3574,3 +3574,36 @@ ul {
   line-height: 1.6;
   color: var(--mist-hi);
 }
+
+/* ---------------- 카드로 간직하기 ----------------
+   공유하기 아래 한 줄. 누르면 화면 아래에서 카드 창이 올라옵니다 (src/lib/card-sheet.js). */
+.keeprow {
+  display: flex;
+  justify-content: flex-end;
+  margin: -4px 0 12px;
+}
+.keepbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(196, 168, 255, 0.3);
+  border-radius: 999px;
+  background: rgba(196, 168, 255, 0.06);
+  color: var(--stardust, #e6dcff);
+  font-family: var(--sans);
+  font-size: var(--fs-xs);
+  font-weight: 400;
+  padding: 6px 13px 6px 11px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+.keepbtn svg {
+  width: 13px;
+  height: 13px;
+  fill: currentColor;
+}
+.keepbtn:hover {
+  color: #fff;
+  border-color: rgba(196, 168, 255, 0.6);
+  background: rgba(196, 168, 255, 0.12);
+}
