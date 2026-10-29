@@ -3583,3 +3583,67 @@ ul {
   gap: 10px;
   margin-top: 14px;
 }
+
+/* 온기 더하기 — 아직 건네지 않았을 때만, 은은하게 숨 쉬듯 빛나고 작은 별이 반짝입니다.
+   한 번 건네면(.on) 반짝임은 멈춥니다. 움직임 줄이기를 켠 사람에게는 가만히 둡니다. */
+.warmline .warmbtn {
+  position: relative;
+}
+.warmline .warmbtn:not(.on) {
+  border-color: rgba(255, 190, 120, 0.45);
+  color: #ffe2c4;
+  background: rgba(255, 176, 103, 0.07);
+  animation: warmglow 2.8s ease-in-out infinite;
+}
+.warmline .warmbtn:not(.on) svg {
+  animation: warmflame 2.8s ease-in-out infinite;
+}
+.warmspark {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  top: -4px;
+  right: 6px;
+  pointer-events: none;
+  opacity: 0;
+  background: #fff4dc;
+  clip-path: polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%);
+  filter: drop-shadow(0 0 4px rgba(255, 210, 150, 0.95));
+}
+.warmspark.two {
+  width: 6px;
+  height: 6px;
+  top: auto;
+  bottom: -2px;
+  right: auto;
+  left: 10px;
+}
+.warmline .warmbtn:not(.on) .warmspark {
+  animation: warmtwinkle 2.8s ease-in-out infinite;
+}
+.warmline .warmbtn:not(.on) .warmspark.two {
+  animation-delay: 1.4s;
+}
+.warmline .sharebtn {
+  margin-left: auto;
+}
+@keyframes warmglow {
+  0%, 100% { box-shadow: 0 0 0 rgba(255, 170, 100, 0); }
+  50% { box-shadow: 0 0 18px rgba(255, 170, 100, 0.38); border-color: rgba(255, 200, 140, 0.75); }
+}
+@keyframes warmflame {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.18); }
+}
+@keyframes warmtwinkle {
+  0%, 30%, 100% { opacity: 0; transform: scale(0.4) rotate(0deg); }
+  45% { opacity: 1; transform: scale(1) rotate(45deg); }
+  60% { opacity: 0; transform: scale(0.5) rotate(90deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .warmline .warmbtn:not(.on),
+  .warmline .warmbtn:not(.on) svg,
+  .warmline .warmbtn:not(.on) .warmspark {
+    animation: none;
+  }
+}

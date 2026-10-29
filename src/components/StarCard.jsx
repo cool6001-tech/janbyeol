@@ -208,9 +208,19 @@ export default function StarCard({
                 <path d="M12 3c2.5 3.2 1 4.8 0 6-1.4 1.7-2.6 3-2.6 5A4.6 4.6 0 0 0 12 19a4.6 4.6 0 0 0 4.6-5c0-1.5-.8-2.6-1.6-3.6" />
               </svg>
               온기 더하기
+              <i className="warmspark" aria-hidden="true" />
+              <i className="warmspark two" aria-hidden="true" />
             </button>
           )}
           <span className="count">{mine ? '받은 온기' : '온기'} {star.warmth || 0}</span>
+          {/* 종이비행기 — 온기 옆, 오른쪽 끝. 누르면 카드 창이 열립니다 (이미지 · 움직이는 카드 · 링크 보내기) */}
+          <button className="sharebtn" onClick={keepAsCard} aria-label="이 별 공유하기">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21.5 2.5 10.6 13.4" />
+              <path d="M21.5 2.5 14.6 21.2l-4-7.8-7.8-4z" />
+            </svg>
+            공유하기
+          </button>
         </div>
         {/* 태그는 화면에 적지 않습니다.
             글 끝에 '바다 · 피로 · 일' 같은 낱말이 붙으면, 방금 읽은 이야기를
@@ -290,17 +300,6 @@ export default function StarCard({
             )}
           </section>
         )}
-
-        <div className="warmrow">
-          {/* 종이비행기 — 누르면 카드 창이 열립니다. 이미지 카드 · 움직이는 카드 · 링크 보내기를 한곳에서 */}
-          <button className="sharebtn" onClick={keepAsCard} aria-label="이 별 공유하기">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21.5 2.5 10.6 13.4" />
-              <path d="M21.5 2.5 14.6 21.2l-4-7.8-7.8-4z" />
-            </svg>
-            공유하기
-          </button>
-        </div>
 
         {mine && star.warmth > 0 && (
           <p className="glowline">
