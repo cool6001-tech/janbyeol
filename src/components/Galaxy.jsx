@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { project, orbitSlot, FOCAL } from '../lib/geometry.js'
-import { emotionRGB } from '../lib/emotionColor.js'
+import { emotionOf, emotionRGB } from '../lib/emotionColor.js'
 import { buildAmbient, buildClouds, clusterSiteFor, CLUSTER_R } from '../lib/galaxy.js'
 import { ageFade, isAnniversary } from '../lib/time.js'
 import { hasPhoto } from '../lib/photo.js'
@@ -292,7 +292,11 @@ export default function Galaxy({
           phase: Math.random() * 6.283,
           speed: 0.6 + Math.random() * 0.9,
           hue: (Math.random() - 0.5) * 10, // 같은 마음이라도 별마다 아주 조금씩 다르게
-          emo: emotionRGB(star), // 이 이야기가 품은 마음의 색
+          // 이 이야기가 품은 마음의 색. emo 는 지금 보이는 색, emoTo 는 가야 할 색입니다.
+          // (emotionRGB 는 팔레트의 배열을 그대로 돌려주니 반드시 복사해서 씁니다)
+          emo: [...emotionRGB(star)],
+          emoKey: emotionOf(star),
+          emoTo: emotionRGB(star),
           size: 1.2 + Math.random() * 1.0,
           warm: 0,
           dim: 1, // 나의 성단 시점에서 남의 잔별이 저무는 정도
@@ -303,6 +307,23 @@ export default function Galaxy({
           born: performance.now(),
         }
         scene.runtime.set(star.id, rt)
+        return rt
+      }
+
+      /* 뒤늦게 찾아오는 제 색.
+         방금 띄운 별은 흰 별로 뜹니다. 서버가 글의 의미를 읽는 데 몇 초가 걸리니까요.
+         예전엔 이 자리에서 색을 한 번만 정하고 끝내서, 마음을 읽어줘도 별은
+         새로고침 전까지 흰 채로 있었습니다 — 카드엔 '슬픔'인데 별은 흰 별.
+         이제 바뀐 걸 알아채고, 툭 바뀌는 대신 1초쯤 걸쳐 스미게 합니다. */
+      const key = emotionOf(star)
+      if (rt.emoKey !== key) {
+        rt.emoKey = key
+        rt.emoTo = emotionRGB(star)
+      }
+      const to = rt.emoTo
+      for (let i = 0; i < 3; i++) {
+        const d = to[i] - rt.emo[i]
+        if (d) rt.emo[i] = Math.abs(d) < 0.5 ? to[i] : rt.emo[i] + d * 0.045
       }
       return rt
     }
