@@ -235,6 +235,10 @@ function toStar(row, myWarmed, repliesByStar) {
     replies: repliesByStar.get(row.id) || [],
     seeded: row.seeded || false,
     allowFeature: row.allow_feature === true,
+    // 서버가 글의 **의미**로 정한 마음. 비어 있으면 화면이 예전 한국어 사전으로 폴백합니다.
+    emotion: row.emotion || null,
+    // 무슨 글자로 쓰였는지 — '옮겨 읽기' 를 보여줄지 정하는 데만 씁니다.
+    lang: row.lang || null,
   }
 }
 
@@ -418,8 +422,23 @@ export const storage = {
     return data || []
   },
 
-  /** 잔별 하나의 소개 허락 바꾸기 — 카드에서 이 별만 거둘 때 */
-  async setAllowFeature(starId, on) {
+  /**
+   * 다른 말로 쓴 별을 내 말로 옮겨 읽기.
+   *
+   * 누른 사람에게만, 누른 그때 한 번 번역합니다. 미리 전부 번역해 두지 않아요.
+   * 한 번 옮긴 글은 서버가 들고 있어서, 같은 별을 다음 사람이 열면 바로 나옵니다.
+   */
+  async translate(starId, lang) {
+    await ensureUser()
+    const { data, error } = await sb.functions.invoke('translate-star', {
+      body: { star_id: starId, lang },
+    })
+    if (error) throw error
+    if (!data?.text) throw new Error(data?.error || '옮겨 읽지 못했어요')
+    return data.text
+  },
+
+  /** 잔별 하나의 소개 허락 바꾸기 — 카드에서 이 별만 거둘 때 */  async setAllowFeature(starId, on) {
     await ensureUser()
     const { error } = await sb
       .from('stars')

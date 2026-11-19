@@ -3051,6 +3051,34 @@ ul {
   color: var(--stardust-hi);
 }
 
+/* 옮겨 읽기 — 글 바로 아래, 왼쪽에.
+   거두기(오른쪽 끝)와 자리를 달리합니다. 하나는 읽기 위한 것이고
+   하나는 지우기 위한 것이라, 같은 줄에 나란히 두면 손이 헷갈립니다. */
+.translateline {
+  margin-top: 12px;
+  font-size: var(--fs-xs);
+  line-height: 1.6;
+}
+.translateline button {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--mist);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: rgba(126, 138, 166, 0.45);
+}
+.translateline button:hover:not(:disabled) {
+  color: var(--mist-hi);
+}
+.translateline button:disabled {
+  cursor: default;
+  opacity: 0.6;
+  text-decoration: none;
+}
+
 /* 이 별 거두기 — 글이 끝나는 자리, 오른쪽 끝에 조용히.
    빨갛게 칠하지 않습니다. 겁주려고 둔 버튼이 아니니까요. */
 .removeone {
@@ -3646,11 +3674,4 @@ ul {
   .warmline .warmbtn:not(.on) .warmspark {
     animation: none;
   }
-}
-
-/* 메뉴 안의 링크(잔별 이야기)도 버튼 항목과 똑같이 보이게 */
-a.helpitem {
-  color: inherit;
-  text-decoration: none;
-  box-sizing: border-box;
 }

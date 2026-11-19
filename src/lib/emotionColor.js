@@ -25,8 +25,20 @@ export const EMOTION_ORDER = ['기쁨', '평온', '그리움', '슬픔', '고독
 
 const TAG_FALLBACK = ['기쁨', '슬픔', '고독', '피로']
 
-/** 이 별의 마음 하나 */
+/**
+ * 이 별의 마음 하나.
+ *
+ * 순서가 중요합니다.
+ *   ① 서버가 글의 **의미**로 정해준 값 (stars.emotion)
+ *   ② 없으면 한국어 단어 사전
+ *
+ * ①이 먼저인 이유: 사전은 한국어 정규식이라 영어나 일본어로 쓴 글은
+ * 아무것도 못 잡아내고 전부 '일상' 흰 별이 됩니다. 의미로 보면 어느 말로 쓰든
+ * 같은 마음은 같은 색이 돼요. 아직 의미를 안 읽은 별(방금 올라온 별, 또는
+ * embed-star 가 못 돌았을 때)을 위해 사전을 남겨둡니다.
+ */
 export function emotionOf(star) {
+  if (star?.emotion && EMOTION_COLORS[star.emotion]) return star.emotion
   const found = facetsOfStar(star).emotions[0]?.key
   if (found) return found
   const tag = (star.tags || []).find((t) => TAG_FALLBACK.includes(t))

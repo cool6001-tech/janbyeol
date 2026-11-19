@@ -5,6 +5,8 @@ import { relativeWhen, readWhen, isAnniversary, yearsAgo } from '../lib/time.js'
 import { emotionOf, EMOTION_COLORS, cssColor } from '../lib/emotionColor.js'
 import StarGuard from './StarGuard.jsx'
 import { isFeatureOnce } from '../lib/policy.js'
+import { isForeign, myLanguage } from '../lib/lang.js'
+import { storage } from '../lib/storage.js'
 
 /**
  * 카드 공유 동의를 받기 시작한 때 (한국 시간 2026-10-30 0시).
@@ -57,12 +59,17 @@ export default function StarCard({
   const [draft, setDraft] = useState('')
   const [confirmRemove, setConfirmRemove] = useState(false)
   const [viewPhoto, setViewPhoto] = useState(false) // 사진 크게 보기
+  // 옮겨 읽기 — null이면 원문, 글자가 담기면 번역문을 보고 있는 중
+  const [translated, setTranslated] = useState(null)
+  const [translating, setTranslating] = useState(false)
   const bodyRef = useRef(null)
 
   useEffect(() => {
     setDraft('')
     setConfirmRemove(false) // 다른 별을 열면 물음은 닫힙니다
     setViewPhoto(false)
+    setTranslated(null)
+    setTranslating(false)
     if (bodyRef.current) bodyRef.current.scrollTop = 0
   }, [star?.id])
 
@@ -81,6 +88,21 @@ export default function StarCard({
   const photo = photoOf(star)
   const mine = star.authorId === me.id
   const warmed = (star.warmedBy || []).includes(me.id)
+  // 내 말로 쓰이지 않은 별인가 — '옮겨 읽기'를 보여줄지
+  const foreign = isForeign(star)
+
+  /** 지금 이 별을 내 말로 옮겨 읽기 */
+  const readInMyLanguage = async () => {
+    if (translating) return
+    setTranslating(true)
+    try {
+      setTranslated(await storage.translate(star.id, myLanguage()))
+    } catch {
+      onNotice?.('지금은 옮겨 읽지 못했어요. 잠시 뒤에 다시 해주세요.')
+    } finally {
+      setTranslating(false)
+    }
+  }
   const replies = star.replies || []
   const anniversary = isAnniversary(star.createdAt)
 
@@ -194,10 +216,29 @@ export default function StarCard({
             빈 줄은 문단으로, 한 줄 줄바꿈은 그대로. 빈 줄을 아무리 많이 넣어도
             문단 사이 간격은 한 번만 벌어집니다 — 카드가 찢어지지 않도록. */}
         <div className={`body${star.text.length > 150 ? ' long' : ''}`}>
-          {paragraphsOf(star.text).map((para, i) => (
+          {paragraphsOf(translated ?? star.text).map((para, i) => (
             <p key={i}>{para}</p>
           ))}
         </div>
+
+        {/* 옮겨 읽기 — 내 말로 쓰이지 않은 별에만 조용히 붙습니다.
+            눌렀을 때 비로소 번역합니다. 미리 다 옮겨두면, 읽히지도 않을 글까지
+            옮기느라 돈과 전기를 쓰게 되니까요.
+            그리고 원문으로 되돌아올 길을 꼭 남겨둡니다 — 옮긴 글은 끝내
+            그 사람이 쓴 그 문장은 아니거든요. */}
+        {foreign && (
+          <div className="translateline">
+            {translated ? (
+              <button type="button" onClick={() => setTranslated(null)}>
+                원문으로 보기
+              </button>
+            ) : (
+              <button type="button" disabled={translating} onClick={readInMyLanguage}>
+                {translating ? '옮기는 중…' : '내 말로 옮겨 읽기'}
+              </button>
+            )}
+          </div>
+        )}
         {/* 온기 — 글을 다 읽은 바로 그 자리에서 건넬 수 있게, 글 끝에 둡니다.
             온기는 남이 건네는 것 — 내 별에는 버튼 없이 받은 온기만 보여줍니다.
             내가 내 별에 온기를 더하면 '몇 명의 밤을 비췄어요'가 거짓말이 되니까요. */}
