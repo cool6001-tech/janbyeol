@@ -437,7 +437,20 @@ export const storage = {
     const { data, error } = await sb.functions.invoke('translate-star', {
       body: { star_id: starId, lang },
     })
-    if (error) throw error
+    // 함수가 오류 상태로 돌려주면 supabase-js 는 본문을 버리고 error 만 줍니다.
+    // 그런데 '왜 못 옮겼는지'는 그 본문에 있어요. 꺼내서 콘솔에 남깁니다 —
+    // 다음에 또 막혔을 때 로그 탭까지 가지 않고 바로 보이도록.
+    if (error) {
+      let detail = ''
+      try {
+        const body = await error.context?.json?.()
+        detail = body?.detail || body?.error || ''
+      } catch {
+        /* 본문이 없으면 그냥 error 메시지로 */
+      }
+      console.error('[잔별] 옮겨 읽지 못했어요', detail || error.message)
+      throw new Error(detail || error.message)
+    }
     if (!data?.text) throw new Error(data?.error || '옮겨 읽지 못했어요')
     return data.text
   },

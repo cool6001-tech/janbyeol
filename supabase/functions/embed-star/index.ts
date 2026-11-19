@@ -196,7 +196,10 @@ async function ensureAnchors(admin: ReturnType<typeof createClient>, apiKey: str
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
-  if (!req.headers.get('Authorization')) return json({ error: '로그인이 필요합니다' }, 401)
+
+  const auth = req.headers.get('Authorization')
+  if (!auth) return json({ error: '로그인이 필요합니다' }, 401)
+  const token = auth.replace(/^Bearer\s+/i, '').trim()
 
   const apiKey = Deno.env.get('GEMINI_API_KEY')
   const key = adminKey()
@@ -211,6 +214,29 @@ Deno.serve(async (req) => {
     body = await req.json()
   } catch {
     /* 빈 요청 = 채우기 */
+  }
+
+  /**
+   * 누가 부르는가.
+   *
+   * 예전엔 Authorization 헤더가 **있기만 하면** 통과시켰습니다. 그건 자물쇠가
+   * 아니라 문고리였어요 — 주소만 알면 아무 글자나 적어 넣고 Gemini 를 대신
+   * 불러 쓸 수 있었습니다. 그 비용은 전부 저희 몫이고요.
+   *
+   * 이제 두 종류만 들어옵니다.
+   *   · 별 하나 읽기(star_id) — 로그인한 사람이면 누구나. 익명 계정도 사람입니다.
+   *     남의 별도 읽게 둡니다. 곁의 별을 찾으려면 그 별의 의미가 필요하고,
+   *     한 별은 **평생 한 번만** 읽으니 부풀 일이 없습니다.
+   *   · 통째로 다시 매기기(redo) / 빈 요청으로 밀어 넣기 — 관리자 키로만.
+   *     하늘 전체를 훑는 일이라 사람 손에 쥐여줄 문이 아닙니다.
+   */
+  const isOwner = token === key
+  const wholeSky = Boolean(body.redo) || !body.star_id
+  if (wholeSky) {
+    if (!isOwner) return json({ error: '관리자 키로만 할 수 있습니다' }, 403)
+  } else if (!isOwner) {
+    const { data: who } = await admin.auth.getUser(token)
+    if (!who?.user) return json({ error: '누구인지 확인할 수 없습니다' }, 401)
   }
 
   // 기준 문장이 없으면 먼저 채웁니다
