@@ -7,6 +7,7 @@ import { ContactMail } from './Contact.jsx'
  *
  * 그 옆의 ? 는 작은 메뉴입니다 — 늘 같은 자리에, 눈에 띄지 않게.
  *   · 안내 다시 보기
+ *   · 잔별 이야기 (/story 소개 페이지)
  *   · 잔별을 만든 사람에게 → 같은 자리에서 메일 주소로 바뀝니다
  */
 export default function TopBar({ clusterCount, mineMode, onToggleMine, onCosmos, onHelp, onIntro, onMenuOpen }) {
@@ -106,6 +107,14 @@ export default function TopBar({ clusterCount, mineMode, onToggleMine, onCosmos,
                       </span>
                     </button>
                   )}
+                  {/* 잔별 이야기 — 밖에서 처음 온 사람에게 건네는 소개 페이지 (public/story.html) */}
+                  <a className="helpitem" role="menuitem" href="/story">
+                    <i className="hi-dot cool" aria-hidden="true" />
+                    <span>
+                      <b>잔별 이야기</b>
+                      <small>잔별이 어떤 곳인지 한눈에 읽어요</small>
+                    </span>
+                  </a>
                   <div className="helpsep" aria-hidden="true" />
                   <button className="helpitem" role="menuitem" type="button" onClick={() => setView('mail')}>
                     <i className="hi-dot warm" aria-hidden="true" />

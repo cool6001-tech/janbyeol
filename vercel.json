@@ -20,7 +20,7 @@
       "destination": "/"
     },
     {
-      "source": "/((?!api/|assets/|terms|privacy|admin$).*)",
+      "source": "/((?!api/|assets/|terms|privacy|story|admin$).*)",
       "destination": "/"
     }
   ],

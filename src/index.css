@@ -3647,3 +3647,10 @@ ul {
     animation: none;
   }
 }
+
+/* 메뉴 안의 링크(잔별 이야기)도 버튼 항목과 똑같이 보이게 */
+a.helpitem {
+  color: inherit;
+  text-decoration: none;
+  box-sizing: border-box;
+}
