@@ -3,9 +3,13 @@ import { storage, readLog, currentUser, ensureUser, onAuthChange } from '../lib/
 import { isConfigured } from '../lib/supabase.js'
 import { tagsOf } from '../lib/tags.js'
 import { galaxyPositionFor } from '../lib/galaxy.js'
+import { emotionOf } from '../lib/emotionColor.js'
 
 /** 좌표 배치 규칙의 판. 규칙이 바뀌면 올려서 옛 기록을 새 은하로 옮깁니다. */
-const POS_VERSION = 3
+const POS_VERSION = 4
+
+/** 지금의 마음으로 자리를 잡아줍니다 (posE 에 그 마음을 적어둡니다) */
+const place = (s) => ({ ...s, pos: galaxyPositionFor(s), posV: POS_VERSION, posE: emotionOf(s) })
 
 /**
  * 잔별의 상태를 한 곳에서 관리합니다.
@@ -50,9 +54,12 @@ export function useJanbyeol() {
 
       // 좌표 규칙이 바뀌었으면 화면에서만 다시 계산합니다.
       // (남의 별을 내가 서버에 고쳐 쓸 수는 없으니까요 — 그래야 맞습니다)
-      const placed = list.map((s) =>
-        s.pos && s.posV === POS_VERSION ? s : { ...s, pos: galaxyPositionFor(s), posV: POS_VERSION }
-      )
+      //
+      // posE 는 '이 자리를 정할 때의 마음'입니다. 서버에는 없는 값이라
+      // 불러올 때마다 비어 있고, 그래서 자리는 늘 지금의 마음으로 다시 잡힙니다.
+      // 별을 띄운 순간에는 아직 마음을 모르니, 이게 없으면 영어로 쓴 별이
+      // 영원히 '일상' 쪽에 박혀 있게 됩니다.
+      const placed = list.map((s) => (s.pos && s.posV === POS_VERSION && s.posE === emotionOf(s) ? s : place(s)))
 
       setStars(placed)
       setRead(log)
@@ -110,12 +117,16 @@ export function useJanbyeol() {
 
       // 의미를 읽어 두라고 부탁합니다. 기다리지 않습니다 — 별은 이미 떠 있으니까요.
       // 서버가 마음과 언어를 돌려주면 그제야 흰 별이 제 색을 찾습니다.
+      // 마음을 알게 되면 색만 바뀌는 게 아닙니다 — 자리도 다시 잡습니다.
+      // 같은 마음은 성단의 같은 쪽에 모이기로 했으니까요.
       storage.embedStar(id).then((label) => {
         if (!label?.emotion && !label?.lang) return
         setStars((prev) =>
-          prev.map((s) =>
-            s.id === id ? { ...s, emotion: label.emotion ?? s.emotion, lang: label.lang ?? s.lang } : s
-          )
+          prev.map((s) => {
+            if (s.id !== id) return s
+            const next = { ...s, emotion: label.emotion ?? s.emotion, lang: label.lang ?? s.lang }
+            return next.emotion === s.emotion ? next : place(next)
+          })
         )
       })
 

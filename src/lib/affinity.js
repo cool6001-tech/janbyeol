@@ -102,12 +102,34 @@ export function facetsOf(text) {
 
 /** 별마다 한 번만 뽑아 두고 다시 씁니다 (짝을 지으면 n² 번 필요하니까) */
 const cache = new Map()
+const EMOTION_BY_KEY = new Map(EMOTIONS.map((e) => [e.key, e]))
 
+/**
+ * 이 별의 소재와 마음.
+ *
+ * 여기 위의 정규식은 전부 한국어입니다. 그래서 영어나 일본어로 쓴 글은
+ * 소재도 마음도 하나도 안 잡혀요. 색은 서버가 의미로 읽어줘서 제 색을 찾는데,
+ * **선은 이 사전으로 긋다 보니** 외국어 별만 그물 밖에 혼자 떠 있었습니다.
+ *
+ * 그래서 서버가 읽은 마음(stars.emotion)이 있으면 그걸 먼저 씁니다.
+ * 사전이 다르게 봤더라도 의미가 이깁니다 — 카드에 뜬 색과 선이 어긋나면
+ * 둘 중 하나는 거짓말이 되니까요.
+ *
+ * '일상'은 좌표가 없습니다. 기준선을 넘지 못했다는 뜻, 곧 **특별한 마음이
+ * 읽히지 않았다**는 뜻이라 마음 없음으로 둡니다 (담담한 글끼리는 서로 닮은 걸로 칩니다).
+ */
 export function facetsOfStar(star) {
-  const hit = cache.get(star.id)
+  const key = star?.emotion || ''
+  // 마음은 별을 띄우고 몇 초 뒤에 옵니다. 키에 섞어 두면 그때 저절로 다시 뽑아요.
+  const id = key ? star.id + '|' + key : star.id
+  const hit = cache.get(id)
   if (hit) return hit
   const facets = facetsOf(star.text)
-  cache.set(star.id, facets)
+  if (key) {
+    const server = EMOTION_BY_KEY.get(key)
+    facets.emotions = server ? [server, ...facets.emotions.filter((e) => e.key !== key)] : []
+  }
+  cache.set(id, facets)
   // 예전 한도(4,000)는 별이 그보다 많아지면 계산 도중에 캐시가 계속 비워져서
   // 같은 글을 수백만 번 다시 읽었어요 (5,000개에서 10초 멈춤의 큰 원인). 넉넉히 둡니다.
   if (cache.size > 100000) cache.clear()

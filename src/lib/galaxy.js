@@ -17,6 +17,8 @@
  * 나선 팔의 울퉁불퉁한 결이 곧 '아직 다가가지 않은 남의 성단들'입니다.
  */
 
+import { emotionOf, EMOTION_ORDER } from './emotionColor.js'
+
 export const ARMS = 4
 const R_MAX = 1650 // 은하 반지름
 const R_BULGE = 240 // 중심 핵
@@ -136,11 +138,16 @@ export function galaxyPositionFor(star, mapping = CLUSTER_MAPPING, now = Date.no
   }
   const r = CLUSTER_R * (0.2 + 0.8 * depth) * (0.55 + rand() * 0.6)
 
-  // 같은 마음은 성단의 같은 쪽에 모인다
-  const tagAngle = mapping.byEmotion
-    ? ((hashSeed(star.tags?.[0] || '일상') % 3600) / 3600) * Math.PI * 2
+  /* 같은 마음은 성단의 같은 쪽에 모인다.
+     예전엔 한국어 태그의 첫 글자를 해시했습니다. 그래서 영어·일본어로 쓴 별은
+     태그가 하나도 안 잡혀 전부 '일상' 자리로 몰렸어요 — 색은 슬픔인데 자리는
+     일상이라, 같은 마음끼리 모인다는 약속이 거기서 깨졌습니다.
+     이제 서버가 의미로 읽은 마음을 씁니다. 여덟 마음이 성단을 여덟 쪽으로
+     고르게 나눠 가져요 (해시보다 이쪽이 눈에도 질서로 보입니다). */
+  const emoAngle = mapping.byEmotion
+    ? (Math.max(0, EMOTION_ORDER.indexOf(emotionOf(star))) / EMOTION_ORDER.length) * Math.PI * 2
     : rand() * Math.PI * 2
-  const theta = tagAngle + (rand() - 0.5) * 0.9
+  const theta = emoAngle + (rand() - 0.5) * 0.9
   const phi = Math.acos(2 * rand() - 1)
 
   return {
