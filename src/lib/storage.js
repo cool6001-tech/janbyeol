@@ -400,14 +400,18 @@ export const storage = {
   /**
    * 이 별의 의미를 읽어 두라고 서버에 부탁합니다 (Gemini 임베딩, supabase/functions/embed-star).
    * 실패해도 괜찮아요 — 그동안은 단어로 닮은 별을 찾습니다.
+   *
+   * 별 하나를 부탁하면 서버가 **그 별의 마음과 언어까지** 돌려줍니다.
+   * 방금 띄운 별이 흰색으로 있다가 제 색을 찾는 건 이 값 덕분이에요.
    */
   async embedStar(starId) {
     try {
       await ensureUser()
       const { data, error } = await sb.functions.invoke('embed-star', { body: { star_id: starId } })
-      return !error && data?.ok !== false
+      if (error || data?.ok === false) return null
+      return { emotion: data?.emotion ?? null, lang: data?.lang ?? null }
     } catch {
-      return false
+      return null
     }
   },
 

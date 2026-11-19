@@ -107,6 +107,18 @@ export function useJanbyeol() {
         setStars((prev) => prev.filter((s) => s.id !== id))
         throw err
       }
+
+      // 의미를 읽어 두라고 부탁합니다. 기다리지 않습니다 — 별은 이미 떠 있으니까요.
+      // 서버가 마음과 언어를 돌려주면 그제야 흰 별이 제 색을 찾습니다.
+      storage.embedStar(id).then((label) => {
+        if (!label?.emotion && !label?.lang) return
+        setStars((prev) =>
+          prev.map((s) =>
+            s.id === id ? { ...s, emotion: label.emotion ?? s.emotion, lang: label.lang ?? s.lang } : s
+          )
+        )
+      })
+
       return star
     },
     [me]

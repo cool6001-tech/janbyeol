@@ -223,10 +223,12 @@ Deno.serve(async (req) => {
   /** 의미 하나로 감정을 고르고, 글자 모양으로 언어를 보고, 별에 적어둡니다 */
   const label = async (starId: string, text: string, vecJson: string) => {
     const { data: emotion } = await admin.rpc('emotion_for', { p_embedding: vecJson })
+    const lang = langOf(text)
     await admin
       .from('stars')
-      .update({ emotion: emotion ?? null, lang: langOf(text) })
+      .update({ emotion: emotion ?? null, lang })
       .eq('id', starId)
+    return { emotion: (emotion as string) ?? null, lang }
   }
 
   // ── 이미 의미를 읽은 별들의 감정만 다시 매기기 ──
@@ -270,6 +272,8 @@ Deno.serve(async (req) => {
   }
 
   let saved = 0
+  // 별 하나만 부탁받았을 때는 결과를 돌려줍니다 — 부른 화면이 바로 색을 칠할 수 있게
+  let labelled: { emotion: string | null; lang: string } | null = null
   const errors: string[] = []
   for (const s of targets) {
     if (!s.text?.trim()) continue
@@ -280,7 +284,7 @@ Deno.serve(async (req) => {
         .from('star_embeddings')
         .upsert({ star_id: s.id, embedding: vecJson, model: MODEL })
       if (error) throw error
-      await label(s.id, s.text, vecJson)
+      labelled = await label(s.id, s.text, vecJson)
       saved++
     } catch (err) {
       errors.push(String(err).slice(0, 200))
@@ -288,5 +292,12 @@ Deno.serve(async (req) => {
     }
   }
   if (errors.length) console.error('[잔별] 의미를 읽지 못한 별이 있어요', errors)
-  return json({ ok: errors.length === 0, saved, remaining: body.star_id ? 0 : Math.max(0, pendingTotal - saved), errors })
+  return json({
+    ok: errors.length === 0,
+    saved,
+    remaining: body.star_id ? 0 : Math.max(0, pendingTotal - saved),
+    emotion: body.star_id ? labelled?.emotion ?? null : undefined,
+    lang: body.star_id ? labelled?.lang ?? null : undefined,
+    errors,
+  })
 })

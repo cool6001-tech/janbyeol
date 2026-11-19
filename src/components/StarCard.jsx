@@ -230,11 +230,11 @@ export default function StarCard({
           <div className="translateline">
             {translated ? (
               <button type="button" onClick={() => setTranslated(null)}>
-                원문으로 보기
+                원문 보기
               </button>
             ) : (
               <button type="button" disabled={translating} onClick={readInMyLanguage}>
-                {translating ? '옮기는 중…' : '내 말로 옮겨 읽기'}
+                {translating ? '옮기는 중…' : '번역하기'}
               </button>
             )}
           </div>
