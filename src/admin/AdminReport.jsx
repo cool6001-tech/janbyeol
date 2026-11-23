@@ -29,8 +29,21 @@ const SERIES = [
   { key: 'warmths', label: '온기', unit: '번' },
   { key: 'replies', label: '별빛(답글)', unit: '개' },
   { key: 'daily_min_per_user', label: '사용자당 하루 체류', unit: '분', digits: 1, avg: true },
-  { key: 'share_visits', label: '공유 링크 방문', unit: '번' },
+  { key: 'share_visits', label: '밖에서 들어온 수', unit: '번' },
+  { key: 'card_visits', label: '카드 QR 로 들어온 수', unit: '번' },
+  { key: 'story_visits', label: '스토리 링크로 들어온 수', unit: '번' },
+  { key: 'removals', label: '거둔 별', unit: '개' },
 ]
+
+/** 길 이름을 사람 말로 */
+const ENTRY_LABEL = {
+  card: '카드 QR',
+  share: '공유 링크',
+  story: '스토리 링크 스티커',
+  qr: 'QR',
+  bio: '프로필 링크',
+  poster: '포스터',
+}
 
 export default function AdminReport() {
   const [days, setDays] = useState(30)
@@ -150,6 +163,26 @@ export default function AdminReport() {
           value={pct(w.repeat_authors, w.authors)}
           sub={`${fmt(w.repeat_authors)} / ${fmt(w.authors)}명`}
         />
+        {/* 한 번은 호기심, 두 번째부터가 진짜입니다 */}
+        <Tile
+          label="두 번째 별까지 띄운 사람"
+          value={pct(w.authors_2plus, w.authors)}
+          sub={`${fmt(w.authors_2plus)} / ${fmt(w.authors)}명`}
+          strong
+        />
+      </Section>
+
+      <Section title="거두기" note="불편하면 여기부터 올라갑니다">
+        <Tile
+          label="거둔 별"
+          value={fmt(w.removals)}
+          sub={`누적 ${fmt(t.removals)}개 · 띄운 별의 ${pct(w.removals, w.stars)}`}
+        />
+        <Tile
+          label="계정과 함께 사라진 별"
+          value={fmt(w.removals_with_account)}
+          sub="떠난 사람의 별 — 거두기와는 다른 신호입니다"
+        />
       </Section>
 
       <Section title="애착" note="계속 쓸 마음이 있나">
@@ -157,8 +190,9 @@ export default function AdminReport() {
       </Section>
 
       <Section title="확산" note="밖으로 퍼지나">
-        <Tile label="공유 링크로 들어온 수" value={fmt(w.share_visits)} sub="사람이 연 것만 (미리보기 수집기 제외)" />
+        <Tile label="밖에서 들어온 수" value={fmt(w.share_visits)} sub="사람이 연 것만 (미리보기 수집기 제외)" strong />
         <Tile label="공식 계정 소개" value={fmt(w.featured)} sub={`누적 ${fmt(t.featured)}개`} />
+        <Entries entries={w.entries} />
       </Section>
 
       <section className="ad-section">
@@ -220,6 +254,36 @@ function Section({ title, note, children }) {
       </header>
       <div className="ad-tiles">{children}</div>
     </section>
+  )
+}
+
+/**
+ * 어느 길로 들어왔나.
+ *
+ * 합계 하나만 보면 "지난주보다 늘었네"에서 끝납니다. 길을 갈라 두면
+ * **무엇을 더 하고 무엇을 접을지**가 보여요. 그게 이 숫자의 쓸모입니다.
+ */
+function Entries({ entries }) {
+  const rows = Object.entries(entries || {})
+    .filter(([, n]) => n > 0)
+    .sort((a, b) => b[1] - a[1])
+  if (!rows.length) {
+    return <Tile label="들어온 길" value="—" sub="아직 표시가 달린 주소로 들어온 사람이 없습니다" />
+  }
+  const total = rows.reduce((s, [, n]) => s + n, 0)
+  return (
+    <div className="ad-tile">
+      <p className="ad-tile-label">들어온 길</p>
+      <ul className="ad-entries">
+        {rows.map(([key, n]) => (
+          <li key={key}>
+            <span>{ENTRY_LABEL[key] || key}</span>
+            <b>{fmt(n)}</b>
+            <i>{pct(n, total)}</i>
+          </li>
+        ))}
+      </ul>
+    </div>
   )
 }
 

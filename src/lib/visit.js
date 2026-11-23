@@ -67,18 +67,36 @@ export function startVisitClock() {
   })
 }
 
-/** 공유 링크(/s/…)를 거쳐 들어왔으면 한 번 셉니다 — 누가 왔는지는 남기지 않고 날짜별 숫자만 */
-export function countShareArrival() {
+/**
+ * 어느 길로 들어왔나 — ?from=card 같은 표시를 한 번 세고 주소에서 지웁니다.
+ *
+ * 홍보를 여러 곳에 동시에 열면 어디서 사람이 왔는지 모르고, 모르면 다음에 뭘
+ * 더 할지도 모릅니다. 그래서 길마다 따로 셉니다.
+ *
+ * 세는 건 **날짜와 길 이름과 숫자**뿐입니다. 누가 왔는지는 남기지 않아요.
+ * 주소에서 표시를 지우는 건 깔끔해서가 아니라, 그 사람이 이 주소를 다시
+ * 열거나 누구에게 보냈을 때 같은 사람이 또 세어지면 안 되기 때문입니다.
+ *
+ * 서버도 같은 목록을 들고 있습니다(count_entry). 새 경로를 만들면 양쪽에 넣으세요.
+ */
+const KNOWN_ENTRIES = ['card', 'share', 'story', 'qr', 'bio', 'poster']
+
+export function countEntry() {
   try {
     const url = new URL(window.location.href)
-    if (url.searchParams.get('from') !== 'share') return
+    const from = (url.searchParams.get('from') || '').toLowerCase()
+    if (!from) return
     url.searchParams.delete('from')
     window.history.replaceState(null, '', url.pathname + (url.search || '') + url.hash)
-    sb.rpc('count_share_visit').then(
+    if (!KNOWN_ENTRIES.includes(from)) return
+    sb.rpc('count_entry', { p_source: from }).then(
       () => {},
-      () => {}
+      () => {} // 통계가 실패해도 이용에는 아무 영향이 없어야 합니다
     )
   } catch {
     /* 무시 */
   }
 }
+
+/** 예전 이름 — App.jsx 가 아직 이걸 부르고 있어도 깨지지 않게 */
+export const countShareArrival = countEntry

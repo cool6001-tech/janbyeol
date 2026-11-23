@@ -16,7 +16,7 @@ import { buildGraph, traceFrom, reachOf } from './lib/graph.js'
 import { distance, distanceToFit, cosmosDistance, FOCAL } from './lib/geometry.js'
 import { GALAXY_RADIUS } from './lib/galaxy.js'
 import { onboarding, takeAuthNotice, storage } from './lib/storage.js'
-import { startVisitClock, countShareArrival } from './lib/visit.js'
+import { startVisitClock, countEntry } from './lib/visit.js'
 
 /**
  * 하늘을 보는 두 가지 시점
@@ -243,9 +243,9 @@ export default function App() {
     toastTimer.current = setTimeout(() => setToast(''), ms)
   }, [])
 
-  /* 트랙션 리포트용 — 머문 시간(30초마다 한 번)과 공유 링크 도착 수. 무엇을 읽었는지는 보내지 않습니다 */
+  /* 트랙션 리포트용 — 머문 시간(30초마다 한 번)과 '어느 길로 들어왔나'. 무엇을 읽었는지는 보내지 않습니다 */
   useEffect(() => {
-    countShareArrival()
+    countEntry()
     startVisitClock()
   }, [])
 

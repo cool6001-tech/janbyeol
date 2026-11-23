@@ -13,6 +13,10 @@
  *   import { Muxer, ArrayBufferTarget } from "https://cdn.jsdelivr.net/npm/mp4-muxer@5.1.3/+esm";
  */
 import { Muxer, ArrayBufferTarget } from "mp4-muxer";
+// 들어오는 길(초대 문구·주소·QR)은 서버 카드와 함께 씁니다 — join-qr.js
+import { JOIN_URL, JOIN_LABEL, drawQr } from "./join-qr.js";
+
+export { JOIN_URL };
 
 // ------------------------------------------------------------
 // 1. 설정
@@ -61,7 +65,7 @@ function makeRng(seed) {
 }
 function hashSeed(str) { let h = 7; for (const ch of str) h = (h * 31 + ch.charCodeAt(0)) % 2147483647; return h; }
 
-function buildScene(star) {
+export function buildScene(star) {
   // 별 id로 씨앗을 정해서 같은 별은 늘 같은 하늘, 다른 별은 다른 하늘이 되게 합니다.
   const r = makeRng(hashSeed(star.id || star.text));
   const bg = Array.from({ length: 480 }, () => ({
@@ -223,8 +227,50 @@ export function drawCard(ctx, star, type, scene, t) {
   spaced(ctx, formatDate(star.createdAt) + (type === "comfort" ? " · 오늘 나를 비춘 별" : ""), CX, 1325, 3);
   ctx.font = `400 40px ${SERIF_FAMILY}`; ctx.fillStyle = "#F5D58A"; ctx.fillText(C.main, CX, 1430);
   ctx.font = `400 33px ${FONT_FAMILY}`; ctx.fillStyle = "#C9CCE4"; ctx.fillText(C.sub(star), CX, 1488);
-  ctx.font = `700 44px ${FONT_FAMILY}`; ctx.fillStyle = "#E8EAF6"; spaced(ctx, "잔별", CX, 1590, 8);
-  ctx.font = `400 30px ${FONT_FAMILY}`; ctx.fillStyle = "#C9CCE4"; spaced(ctx, "janbyeol.com", CX, 1640, 4);
+  drawJoin(ctx, ACC);
+}
+
+/** 왼쪽 정렬로 자간 주기 (spaced 는 가운데 정렬이라 여기선 못 씁니다) */
+function spacedLeft(ctx, txt, x, y, sp) {
+  let cx = x;
+  for (const ch of txt) { ctx.fillText(ch, cx, y); cx += ctx.measureText(ch).width + sp; }
+}
+
+/**
+ * 들어오는 길 — QR 한 장과 초대 한 줄.
+ *
+ * 자리가 왜 여기인가: 스토리에서는 화면 **아래 10%쯤을 '메시지 보내기' 바가
+ * 덮습니다.** 거기에 초대를 두면 정작 들어올 사람 눈에 안 보여요. 그래서
+ * 바닥에서 200px 넘게 띄워 둡니다.
+ *
+ * 영상에서도 **움직이지 않습니다.** 흔들리는 QR 은 못 찍고, 깜박이는 초대는
+ * 광고처럼 보입니다. 60초 내내 같은 자리에 가만히 있는 편이 낫습니다.
+ */
+function drawJoin(ctx, ACC) {
+  const SIZE = 176;   // QR 판 (빈 칸 포함). 칸 하나가 4.7px — 720px 로 줄여도 찍힙니다
+  const GAP = 42;
+  const TOP = 1530;   // 아래 끝이 1706 — 스토리의 아래 바를 피합니다
+
+  ctx.textAlign = "left";
+  ctx.font = `700 36px ${FONT_FAMILY}`;
+  const wMark = ctx.measureText("잔별").width + 6; // 자간 한 번
+  ctx.font = `500 38px ${FONT_FAMILY}`;
+  const wLabel = ctx.measureText(JOIN_LABEL).width;
+  ctx.font = `400 30px ${FONT_FAMILY}`;
+  const wSite = ctx.measureText("janbyeol.com").width;
+
+  const left = CX - (SIZE + GAP + Math.max(wMark, wLabel, wSite)) / 2;
+  drawQr(ctx, left, TOP, SIZE);
+
+  const tx = left + SIZE + GAP;
+  ctx.font = `700 36px ${FONT_FAMILY}`; ctx.fillStyle = "#E8EAF6";
+  spacedLeft(ctx, "잔별", tx, TOP + 52, 6);
+  ctx.font = `500 38px ${FONT_FAMILY}`; ctx.fillStyle = ACC(1);
+  ctx.fillText(JOIN_LABEL, tx, TOP + 110);
+  ctx.font = `400 30px ${FONT_FAMILY}`; ctx.fillStyle = "#C9CCE4";
+  ctx.fillText("janbyeol.com", tx, TOP + 156);
+
+  ctx.textAlign = "center"; // 다음에 그리는 쪽이 가운데 정렬을 기대합니다
 }
 
 // 남의 별인데 작성자가 동의하지 않았다면 문장을 숨깁니다.
@@ -237,6 +283,7 @@ async function prepare(star, type) {
   await Promise.all([
     document.fonts.load(`400 54px ${SERIF_FAMILY}`, star.text),
     document.fonts.load(`400 34px ${FONT_FAMILY}`, "잔별 내가 띄운 별 나를 비춘"),
+    document.fonts.load(`500 38px ${FONT_FAMILY}`, JOIN_LABEL),
     document.fonts.load(`700 44px ${FONT_FAMILY}`, "잔별"),
   ]).catch(() => {});
   const canvas = document.createElement("canvas");

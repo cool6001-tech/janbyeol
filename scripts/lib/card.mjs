@@ -8,6 +8,8 @@
 import { createCanvas, GlobalFonts } from '@napi-rs/canvas'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+// 브라우저 카드와 같은 초대·같은 QR (src/lib/join-qr.js)
+import { JOIN_LABEL, drawQr } from '../../src/lib/join-qr.js'
 
 /* 마음의 색 — src/lib/emotionColor.js 와 같은 값 */
 const EMOTION_COLORS = {
@@ -161,9 +163,35 @@ export function drawCard(star) {
   ctx.fillStyle = 'rgba(255,176,103,0.92)'
   ctx.fillText(`온기 ${star.warmth}`, W / 2, H * 0.80)
 
-  ctx.font = '26px NotoKR, sans-serif'
-  ctx.fillStyle = 'rgba(126,138,166,0.9)'
-  ctx.fillText('잔별 · janbyeol', W / 2, H * 0.90)
+  /* 들어오는 길 — 피드의 그림은 눌러지지 않습니다.
+     서명('잔별 · janbyeol')만 적어두면 그게 초대인 줄 모르고 지나가요.
+     그래서 브라우저 카드와 **같은** 초대와 같은 QR 을 답니다. */
+  const QR_SIZE = 146
+  const GAP = 36
+  const TOP = H - 220
+
+  ctx.textAlign = 'left'
+  ctx.font = '700 30px NotoKR, sans-serif'
+  const wMark = ctx.measureText('잔별').width
+  ctx.font = '32px NotoKR, sans-serif'
+  const wLabel = ctx.measureText(JOIN_LABEL).width
+  ctx.font = '24px NotoKR, sans-serif'
+  const wSite = ctx.measureText('janbyeol.com').width
+
+  const left = W / 2 - (QR_SIZE + GAP + Math.max(wMark, wLabel, wSite)) / 2
+  drawQr(ctx, left, TOP, QR_SIZE, 14)
+
+  const tx = left + QR_SIZE + GAP
+  ctx.font = '700 30px NotoKR, sans-serif'
+  ctx.fillStyle = 'rgba(232,234,246,0.95)'
+  ctx.fillText('잔별', tx, TOP + 44)
+  ctx.font = '32px NotoKR, sans-serif'
+  ctx.fillStyle = 'rgba(255,176,103,0.95)'
+  ctx.fillText(JOIN_LABEL, tx, TOP + 94)
+  ctx.font = '24px NotoKR, sans-serif'
+  ctx.fillStyle = 'rgba(176,184,208,0.9)'
+  ctx.fillText('janbyeol.com', tx, TOP + 132)
+  ctx.textAlign = 'center'
 
   // 인스타는 JPEG만 받습니다
   return canvas.encode('jpeg', 92)

@@ -66,8 +66,24 @@ function page({ title, description, image, url, redirectTo }) {
 </html>`
 }
 
+/**
+ * 이 링크가 어느 길에서 왔는가.
+ *
+ * 카드를 공유할 때 복사되는 주소에는 utm_source=card 가 붙습니다(star-card.js).
+ * 그 주소를 스토리의 링크 스티커에 붙여 누가 눌렀다면, 그건 **카드가 데려온
+ * 사람**이에요. 그냥 '링크로 보내기'로 카톡에 보낸 주소와는 뜻이 다릅니다.
+ *
+ * 여기서 갈라두지 않으면 둘이 한 통에 섞여서, 정작 "카드가 효과가 있었나"를
+ * 물을 때 답할 수가 없습니다.
+ */
+function entryOf(query) {
+  const utm = String(query?.utm_source || '').toLowerCase()
+  return utm === 'card' ? 'story' : 'share'
+}
+
 export default async function handler(req, res) {
   const { id } = req.query
+  const from = entryOf(req.query)
 
   const sb = createClient(
     process.env.VITE_SUPABASE_URL,
@@ -110,8 +126,9 @@ export default async function handler(req, res) {
           : '별거 아닌 줄 알았던 당신의 오늘이, 이곳에선 누군가의 밤을 비추는 별이 됩니다.',
       image: `${BASE}/api/card/${encodeURIComponent(star.id)}.jpg`,
       url: `${BASE}/s/${encodeURIComponent(star.id)}`,
-      // from=share — 앱이 '공유 링크로 들어온 수'를 날짜별 합계로만 셉니다 (스크래퍼는 스크립트를 실행하지 않아 세지 않음)
-      redirectTo: `${BASE}/?star=${encodeURIComponent(star.id)}&from=share`,
+      // from=… — 앱이 '어느 길로 들어왔나'를 날짜별 합계로만 셉니다
+      // (스크래퍼는 스크립트를 실행하지 않아 세지 않습니다)
+      redirectTo: `${BASE}/?star=${encodeURIComponent(star.id)}&from=${from}`,
     })
   )
 }
