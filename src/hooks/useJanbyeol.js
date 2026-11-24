@@ -124,7 +124,13 @@ export function useJanbyeol() {
         setStars((prev) =>
           prev.map((s) => {
             if (s.id !== id) return s
-            const next = { ...s, emotion: label.emotion ?? s.emotion, lang: label.lang ?? s.lang }
+            const next = {
+              ...s,
+              emotion: label.emotion ?? s.emotion,
+              feeling: label.feeling ?? s.feeling,
+              topic: label.topic ?? s.topic,
+              lang: label.lang ?? s.lang,
+            }
             return next.emotion === s.emotion ? next : place(next)
           })
         )

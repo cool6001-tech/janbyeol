@@ -66,8 +66,29 @@ const PANEL_DOCK = 462 // 왼쪽 나의 성단 패널 (넓은 화면 430px + 여
 const KIN_COUNT = 5
 const KIN_STEP = 5
 const KIN_MAX = 20
-/** 의미로 고른 별 중 이보다 덜 닮은 건 곁에 두지 않습니다 (0~1, 코사인 유사도) */
-const SEMANTIC_MIN = 0.45
+/**
+ * 곁에 둘 만큼 닮았다고 보는 점수 (0~1).
+ *
+ * 예전엔 이 값이 '코사인 유사도'였습니다. 그런데 임베딩으로 재는 유사도는
+ * 아무 상관 없는 한국어 두 문장끼리도 0.5가 나와요. 그 기준으로 자르면
+ * 사실상 아무것도 안 걸러집니다 — 가장 가까운 다섯을 보여줄 뿐,
+ * 그 다섯이 가깝다는 보장이 없었어요.
+ *
+ * 이제 서버(kin_of)가 셋을 섞은 점수를 줍니다.
+ *
+ *     마음 0.55  +  상황 0.20  +  의미 0.25
+ *
+ * 그래서 0.45 는 이런 뜻이 됩니다.
+ *
+ *   · 같은 결의 마음(0.55)이면 그것만으로 통과 — 이별의 슬픔끼리는 붙입니다
+ *   · 같은 갈래이기만 하면(0.30) 모자랍니다. 내용까지 정말 가까워야 넘어와요
+ *   · 마음이 다르면 상황이 같아도(0.20) 못 넘습니다 — 같은 회사 이야기라도
+ *     한쪽은 설레고 한쪽은 지쳤다면 곁에 둘 이유가 없으니까요
+ *
+ * '의미'는 언어의 그림자를 뺀 뒤 잰 값이라, 같은 한국어라서 받던 점수는
+ * 여기에 없습니다 (supabase/meaning.sql).
+ */
+const KIN_MIN = 0.45
 
 /** 점수(0~10)를 궤도 반지름으로 */
 function orbitRadiusFor(score) {
@@ -492,7 +513,7 @@ export default function App() {
         let rows = await ask()
         if (!rows.length && !embedFirst && (await storage.embedStar(anchorId))) rows = await ask()
         const known = new Set(starsRef.current.map((s) => s.id))
-        const good = rows.filter((r) => known.has(r.id) && r.similarity >= SEMANTIC_MIN)
+        const good = rows.filter((r) => known.has(r.id) && r.similarity >= KIN_MIN)
         if (!good.length) return
         setKindred((prev) =>
           prev.anchorId !== anchorId

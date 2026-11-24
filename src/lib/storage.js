@@ -236,7 +236,10 @@ function toStar(row, myWarmed, repliesByStar) {
     seeded: row.seeded || false,
     allowFeature: row.allow_feature === true,
     // 서버가 글의 **의미**로 정한 마음. 비어 있으면 화면이 예전 한국어 사전으로 폴백합니다.
+    // emotion 은 여덟 갈래(색과 자리), feeling 은 그 안의 결, topic 은 무엇에 대한 이야기인가.
     emotion: row.emotion || null,
+    feeling: row.feeling || null,
+    topic: row.topic || null,
     // 무슨 글자로 쓰였는지 — '옮겨 읽기' 를 보여줄지 정하는 데만 씁니다.
     lang: row.lang || null,
   }
@@ -409,7 +412,12 @@ export const storage = {
       await ensureUser()
       const { data, error } = await sb.functions.invoke('embed-star', { body: { star_id: starId } })
       if (error || data?.ok === false) return null
-      return { emotion: data?.emotion ?? null, lang: data?.lang ?? null }
+      return {
+        emotion: data?.emotion ?? null,
+        feeling: data?.feeling ?? null,
+        topic: data?.topic ?? null,
+        lang: data?.lang ?? null,
+      }
     } catch {
       return null
     }

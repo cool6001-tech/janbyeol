@@ -29,79 +29,12 @@
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+// 마음과 상황의 기준 문장 — 이 서비스의 자(尺)입니다
+import { allAnchors } from './anchors.ts'
 
 const MODEL = 'gemini-embedding-001'
 const DIM = 768
 const BACKFILL_MAX = 40
-
-/**
- * 감정의 기준 문장들.
- *
- * 한 감정에 여러 언어를 섞어 둡니다. 임베딩 모델이 언어를 넘나드는 데 약하더라도,
- * 영어 글은 영어 기준 문장에, 일본어 글은 일본어 기준 문장에 걸리면 되니까요.
- * 모델이 언어를 잘 넘나든다면 더 좋고요. **어느 쪽이든 작동하도록** 짠 구조입니다.
- *
- * 문장은 설명이 아니라 **그 마음으로 쓴 한 줄**이어야 합니다.
- * "기쁨이란 즐거운 감정이다" 같은 사전식 문장은 실제 일기와 닮지 않아요.
- */
-const ANCHORS: Record<string, string[]> = {
-  기쁨: [
-    '오늘 좋은 일이 있었다. 자꾸 웃음이 났다.',
-    '별거 아닌데 괜히 뿌듯하고 설렜다.',
-    'Something good happened today and I keep smiling about it.',
-    'I felt proud of myself for once. It was a small thing but it mattered.',
-    '今日はいいことがあって、何度も思い出しては笑ってしまう。',
-  ],
-  평온: [
-    '별일 없는 하루였다. 그게 좋았다.',
-    '창문을 열어두고 한참 가만히 있었다. 마음이 조용했다.',
-    'Nothing happened today and that was fine. I felt calm.',
-    'I sat quietly for a while and my mind was still.',
-    '何もない一日だった。静かで、悪くなかった。',
-  ],
-  그리움: [
-    '문득 그 사람 생각이 났다. 보고 싶다.',
-    '예전 그 시절이 자꾸 떠오른다. 다시 돌아갈 수는 없겠지.',
-    'I thought of them out of nowhere today. I miss them.',
-    'I keep remembering how things used to be.',
-    'ふと、あの人のことを思い出した。会いたい。',
-  ],
-  슬픔: [
-    '눈물이 났다. 마음이 먹먹하다.',
-    '오늘은 그냥 좀 슬펐다. 이유를 모르겠다.',
-    'I cried today. My chest feels heavy.',
-    'I was just sad today and I do not know why.',
-    '涙が出た。胸が苦しい。',
-  ],
-  고독: [
-    '혼자였다. 아무도 내 하루를 묻지 않았다.',
-    '사람들 속에 있었는데도 혼자인 것 같았다.',
-    'I was alone today. Nobody asked how my day went.',
-    'I was surrounded by people and still felt completely alone.',
-    '一人だった。誰も私の一日を聞かなかった。',
-  ],
-  피로: [
-    '너무 지쳤다. 아무것도 하기 싫다.',
-    '하루 종일 일했다. 지금은 피곤할 뿐이다.',
-    'I am exhausted. I do not want to do anything.',
-    'Worked all day. Right now I am just tired.',
-    'もう疲れた。何もしたくない。',
-  ],
-  불안: [
-    '자꾸 걱정이 된다. 잘못될 것 같아서 잠이 안 온다.',
-    '마음이 계속 조마조마하다. 뭔가 잘못될 것 같다.',
-    'I keep worrying. I cannot sleep because something feels wrong.',
-    'My chest is tight with worry about what comes next.',
-    '不安で眠れない。何かうまくいかない気がする。',
-  ],
-  일상: [
-    '밥을 먹고 산책을 했다. 그런 하루였다.',
-    '별다를 것 없는 평범한 하루를 보냈다.',
-    'I ate, I walked, I came home. That was the day.',
-    'Just an ordinary day with nothing in particular.',
-    'ご飯を食べて、散歩をして帰ってきた。そんな一日。',
-  ],
-}
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -175,23 +108,52 @@ async function embed(text: string, apiKey: string): Promise<number[]> {
 }
 
 /**
- * 기준 문장들이 비어 있으면 채웁니다. 처음 한 번만 도는 길입니다.
- * 여기서 실패하면 감정은 비워둔 채 넘어갑니다 — 화면이 예전 사전으로 폴백하니까요.
+ * 기준 문장 채우기 — **끊어서** 채웁니다.
+ *
+ * 문장이 120개입니다. 한 번에 다 부르면 Gemini 왕복만 120번이라 함수가
+ * 시간 안에 못 끝내고 끊겨요. 그러면 반쯤 채워진 채로 남는데, 그 상태가
+ * 가장 나쁩니다 — 반쪽짜리 자로 잰 마음은 틀린 마음이니까요.
+ *
+ * 그래서 **아직 없는 것만, 한 번에 budget 개씩** 채우고 몇 개 남았는지
+ * 돌려줍니다. 0이 될 때까지 몇 번 더 부르면 됩니다.
+ * 다 차면 언어의 그림자(lang_centroids)를 다시 계산합니다.
  */
-async function ensureAnchors(admin: ReturnType<typeof createClient>, apiKey: string) {
-  const { count } = await admin
-    .from('emotion_anchors')
-    .select('emotion', { count: 'exact', head: true })
-  if ((count ?? 0) > 0) return
+async function fillAnchors(
+  admin: ReturnType<typeof createClient>,
+  apiKey: string,
+  budget = 30
+): Promise<{ filled: number; remaining: number; centroids?: number }> {
+  const want = allAnchors()
+  const { data: have } = await admin.from('meaning_anchors').select('kind, label, lang')
+  const seen = new Set((have ?? []).map((r: Record<string, string>) => `${r.kind}|${r.label}|${r.lang}`))
+  const todo = want.filter((a) => !seen.has(`${a.kind}|${a.label}|${a.lang}`))
 
-  for (const [emotion, phrases] of Object.entries(ANCHORS)) {
-    for (const phrase of phrases) {
-      const vec = await embed(phrase, apiKey)
-      await admin
-        .from('emotion_anchors')
-        .upsert({ emotion, phrase, embedding: JSON.stringify(vec) })
+  let filled = 0
+  for (const a of todo.slice(0, budget)) {
+    try {
+      const vec = await embed(a.phrase, apiKey)
+      const { error } = await admin.from('meaning_anchors').upsert({
+        kind: a.kind,
+        label: a.label,
+        family: a.family,
+        lang: a.lang,
+        phrase: a.phrase,
+        embedding: JSON.stringify(vec),
+      })
+      if (error) throw new Error(error.message)
+      filled++
+    } catch (err) {
+      console.error('[잔별] 기준 문장을 못 담았어요', a.label, a.lang, String(err).slice(0, 200))
+      break // 한 번 막히면 (대개 할당량) 남은 것도 막힙니다. 다음 호출에서 이어가요.
     }
   }
+
+  const remaining = todo.length - filled
+  if (remaining > 0) return { filled, remaining }
+
+  // 다 찼습니다 — 언어마다의 평균 방향을 다시 구합니다
+  const { data: n } = await admin.rpc('rebuild_lang_centroids')
+  return { filled, remaining: 0, centroids: (n as number) ?? 0 }
 }
 
 Deno.serve(async (req) => {
@@ -209,7 +171,7 @@ Deno.serve(async (req) => {
   }
   const admin = createClient(Deno.env.get('SUPABASE_URL')!, key, { auth: { persistSession: false } })
 
-  let body: { star_id?: string; redo?: boolean } = {}
+  let body: { star_id?: string; redo?: boolean; anchors?: boolean; budget?: number } = {}
   try {
     body = await req.json()
   } catch {
@@ -231,7 +193,7 @@ Deno.serve(async (req) => {
    *     하늘 전체를 훑는 일이라 사람 손에 쥐여줄 문이 아닙니다.
    */
   const isOwner = token === key
-  const wholeSky = Boolean(body.redo) || !body.star_id
+  const wholeSky = Boolean(body.redo) || Boolean(body.anchors) || !body.star_id
   if (wholeSky) {
     if (!isOwner) return json({ error: '관리자 키로만 할 수 있습니다' }, 403)
   } else if (!isOwner) {
@@ -239,22 +201,44 @@ Deno.serve(async (req) => {
     if (!who?.user) return json({ error: '누구인지 확인할 수 없습니다' }, 401)
   }
 
-  // 기준 문장이 없으면 먼저 채웁니다
-  try {
-    await ensureAnchors(admin, apiKey)
-  } catch (err) {
-    console.error('[잔별] 감정 기준 문장을 못 만들었습니다', String(err).slice(0, 300))
+  // ── 기준 문장 채우기 — 관리자가 직접 부릅니다 ──
+  // 예전엔 모든 요청마다 "비었나?"를 물었습니다. 별 하나 읽을 때마다 쓸데없는
+  // 왕복이 한 번씩 더 생기는 거예요. 채우는 건 처음 몇 번뿐인 일이니 따로 뺍니다.
+  if (body.anchors) {
+    try {
+      const r = await fillAnchors(admin, apiKey, Math.min(60, Math.max(5, body.budget ?? 30)))
+      return json({ ok: true, ...r })
+    } catch (err) {
+      console.error('[잔별] 기준 문장을 못 만들었습니다', String(err).slice(0, 300))
+      return json({ error: '기준 문장을 채우지 못했어요' }, 502)
+    }
   }
 
-  /** 의미 하나로 감정을 고르고, 글자 모양으로 언어를 보고, 별에 적어둡니다 */
+  /**
+   * 이 글의 마음과 상황을 정해 별에 적어둡니다.
+   *
+   *   emotion  여덟 갈래 — 별의 색과 자리가 이걸 씁니다
+   *   feeling  스물여섯 결 — 곁에 둘지 말지를 정할 때 씁니다
+   *   topic    무엇에 대한 이야기인가
+   *   lang     무슨 말로 썼나 (번역 버튼과 '언어의 그림자'에 씁니다)
+   *
+   * 언어를 먼저 정해서 넘깁니다. 서버가 그 언어의 평균 방향을 빼고 재야
+   * '같은 한국어라서 가깝다'가 사라지니까요.
+   */
   const label = async (starId: string, text: string, vecJson: string) => {
-    const { data: emotion } = await admin.rpc('emotion_for', { p_embedding: vecJson })
     const lang = langOf(text)
+    const { data } = await admin.rpc('meaning_for', { p_embedding: vecJson, p_lang: lang })
+    const m = (data ?? {}) as { feeling?: string | null; family?: string | null; topic?: string | null }
     await admin
       .from('stars')
-      .update({ emotion: emotion ?? null, lang })
+      .update({
+        emotion: m.family ?? null,
+        feeling: m.feeling ?? null,
+        topic: m.topic ?? null,
+        lang,
+      })
       .eq('id', starId)
-    return { emotion: (emotion as string) ?? null, lang }
+    return { emotion: m.family ?? null, feeling: m.feeling ?? null, topic: m.topic ?? null, lang }
   }
 
   // ── 이미 의미를 읽은 별들의 감정만 다시 매기기 ──
@@ -299,7 +283,7 @@ Deno.serve(async (req) => {
 
   let saved = 0
   // 별 하나만 부탁받았을 때는 결과를 돌려줍니다 — 부른 화면이 바로 색을 칠할 수 있게
-  let labelled: { emotion: string | null; lang: string } | null = null
+  let labelled: { emotion: string | null; feeling: string | null; topic: string | null; lang: string } | null = null
   const errors: string[] = []
   for (const s of targets) {
     if (!s.text?.trim()) continue
@@ -323,6 +307,8 @@ Deno.serve(async (req) => {
     saved,
     remaining: body.star_id ? 0 : Math.max(0, pendingTotal - saved),
     emotion: body.star_id ? labelled?.emotion ?? null : undefined,
+    feeling: body.star_id ? labelled?.feeling ?? null : undefined,
+    topic: body.star_id ? labelled?.topic ?? null : undefined,
     lang: body.star_id ? labelled?.lang ?? null : undefined,
     errors,
   })
