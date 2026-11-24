@@ -44,26 +44,61 @@ const cors = {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } })
 
-/** 관리자 키 — delete-account 와 같은 방식으로 찾습니다 */
-function adminKey(): string | null {
-  const legacy = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-  if (legacy) return legacy
+/**
+ * 이 프로젝트의 관리자 키들.
+ *
+ * 처음엔 **하나만** 집었습니다. 그게 잘못이었어요. 프로젝트에는 secret 키가
+ * 여럿 있을 수 있고(키를 갈아끼우는 동안엔 반드시 그렇습니다), 저는 맨 앞의
+ * 하나만 보고 "이것만 관리자 키"라고 못 박았습니다. 그래서 다른 쪽 키를
+ * 들고 오면 주인인데도 문전박대를 당했습니다.
+ *
+ * 이제 **찾을 수 있는 모든 키를 모아** 그중 하나와 맞으면 주인으로 봅니다.
+ * 전부 이 프로젝트의 관리자 키이니 어느 쪽이든 권한은 같아요.
+ */
+function adminKeys(): { keys: string[]; primary: string | null; sources: string[] } {
+  const keys: string[] = []
+  const sources: string[] = []
+  const add = (v: unknown, from: string) => {
+    if (typeof v === 'string' && v && !keys.includes(v)) {
+      keys.push(v)
+      sources.push(from)
+    }
+  }
+
+  add(Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'), 'SERVICE_ROLE_KEY')
+
   const bundle = Deno.env.get('SUPABASE_SECRET_KEYS')
   if (bundle) {
     try {
       const parsed = JSON.parse(bundle)
-      const first = Array.isArray(parsed) ? parsed[0] : Object.values(parsed)[0]
-      if (typeof first === 'string') return first
-      if (first && typeof first === 'object') {
-        const v = first as Record<string, unknown>
-        const found = v.api_key ?? v.key ?? v.secret
-        if (typeof found === 'string') return found
+      const items = Array.isArray(parsed) ? parsed : Object.values(parsed)
+      for (const it of items) {
+        if (typeof it === 'string') add(it, 'SECRET_KEYS')
+        else if (it && typeof it === 'object') {
+          const v = it as Record<string, unknown>
+          add(v.api_key ?? v.key ?? v.secret, 'SECRET_KEYS')
+        }
       }
     } catch {
-      /* 아래 수동 키로 */
+      /* 모양이 다르면 그냥 건너뜁니다 */
     }
   }
-  return Deno.env.get('JANBYEOL_SERVICE_KEY') ?? null
+
+  add(Deno.env.get('JANBYEOL_SERVICE_KEY'), 'JANBYEOL_SERVICE_KEY')
+  return { keys, primary: keys[0] ?? null, sources }
+}
+
+/**
+ * 키의 지문 — 값은 숨기고 같은지 다른지만 보여줍니다.
+ *
+ * 키가 안 맞을 때 "안 맞는다"는 말만 돌려주면 고칠 길이 없습니다. 그렇다고
+ * 키를 보여줄 수는 없고요. 그래서 **되돌릴 수 없는 지문** 여덟 글자만 보냅니다.
+ */
+async function fingerprint(v: string | null): Promise<string> {
+  if (!v) return '(없음)'
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(v))
+  const hex = [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('')
+  return `${hex.slice(0, 8)}·${v.length}자`
 }
 
 /**
@@ -164,7 +199,7 @@ Deno.serve(async (req) => {
   const token = auth.replace(/^Bearer\s+/i, '').trim()
 
   const apiKey = Deno.env.get('GEMINI_API_KEY')
-  const key = adminKey()
+  const { keys, primary: key, sources } = adminKeys()
   if (!apiKey || !key) {
     console.error('[잔별] GEMINI_API_KEY 또는 관리자 키가 비어 있습니다 (Edge Functions → Secrets)')
     return json({ error: 'not configured' }, 500)
@@ -192,10 +227,18 @@ Deno.serve(async (req) => {
    *   · 통째로 다시 매기기(redo) / 빈 요청으로 밀어 넣기 — 관리자 키로만.
    *     하늘 전체를 훑는 일이라 사람 손에 쥐여줄 문이 아닙니다.
    */
-  const isOwner = token === key
+  const isOwner = keys.includes(token) // 이 프로젝트의 관리자 키 중 **아무거나** 맞으면 주인입니다
   const wholeSky = Boolean(body.redo) || Boolean(body.anchors) || !body.star_id
   if (wholeSky) {
-    if (!isOwner) return json({ error: '관리자 키로만 할 수 있습니다' }, 403)
+    if (!isOwner) {
+      // 키가 안 맞을 때, 무엇과 안 맞는지를 알려줍니다 (값이 아니라 지문으로)
+      return json({
+        error: '관리자 키로만 할 수 있습니다',
+        함수가_아는_키: await Promise.all(keys.map(fingerprint)),
+        보내신_키: await fingerprint(token),
+        어디서_가져왔나: sources,
+      }, 403)
+    }
   } else if (!isOwner) {
     const { data: who } = await admin.auth.getUser(token)
     if (!who?.user) return json({ error: '누구인지 확인할 수 없습니다' }, 401)
@@ -227,6 +270,18 @@ Deno.serve(async (req) => {
    */
   const label = async (starId: string, text: string, vecJson: string) => {
     const lang = langOf(text)
+
+    /* 너무 짧은 글에서는 마음을 읽지 않습니다.
+       `네 있었어요` 두 어절에 그리움을 붙이고 `배가고프다`에 기쁨을 붙이는 건
+       읽은 게 아니라 찍은 겁니다. 짧은 글의 임베딩은 거의 소음이라, 자를
+       들이대면 눈금은 늘 하나를 가리키지만 그 가리킴에 뜻이 없어요.
+       글자(공백·기호 제외)로 세어 열두 자 미만이면 흰 별로 둡니다. */
+    const letters = (text || '').replace(/[\s\p{P}\p{S}]/gu, '').length
+    if (letters < 12) {
+      await admin.from('stars').update({ emotion: null, feeling: null, topic: null, lang }).eq('id', starId)
+      return { emotion: null, feeling: null, topic: null, lang }
+    }
+
     const { data } = await admin.rpc('meaning_for', { p_embedding: vecJson, p_lang: lang })
     const m = (data ?? {}) as { feeling?: string | null; family?: string | null; topic?: string | null }
     await admin

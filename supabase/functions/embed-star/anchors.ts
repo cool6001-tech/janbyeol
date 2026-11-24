@@ -154,12 +154,21 @@ export const FEELINGS: Anchor[] = [
     ko: '아픈 가족을 생각하면 마음이 놓이지 않는다. 결과가 나올 때까지 계속 그 생각뿐이다.',
     en: 'I cannot stop worrying about someone in my family who is unwell. Until the results come, it is all I think about.',
     ja: '体調の悪い家族のことが気がかりでならない。結果が出るまで、そのことばかり考えてしまう。' },
+  { label: '불안-손실', family: '불안',
+    ko: '손해를 봤다. 숫자가 자꾸 눈앞에 어른거린다.',
+    en: 'I lost money. The numbers keep floating in front of my eyes.',
+    ja: '損をした。数字が何度も目の前にちらつく。' },
   { label: '불안-분노', family: '불안',
     ko: '화가 났다. 억울해서 자꾸 그 장면이 떠오른다.',
     en: 'I was angry. It was unfair and the scene keeps replaying.',
     ja: '腹が立った。理不尽で、その場面が何度も浮かぶ。' },
 
-  // 일상
+  /* 일상.
+     처음엔 둘뿐이었습니다. 슬픔은 여섯, 불안은 다섯인데 일상만 둘이었어요.
+     그래서 **평범한 글이 내려앉을 자리가 부족했습니다.** 책을 읽는 이야기,
+     뉴스를 보며 드는 생각, 혼잣말 같은 질문 — 이런 글들이 갈 곳이 없어
+     그리움이나 불안으로 끌려갔습니다. 하늘의 대부분은 특별한 마음이 아니라
+     그냥 하루입니다. 그 자리를 넓게 둬야 나머지가 제자리를 지킵니다. */
   { label: '일상-관찰', family: '일상',
     ko: '길에서 본 장면 하나가 오래 남았다.',
     en: 'Something I saw on the street stayed with me.',
@@ -168,6 +177,18 @@ export const FEELINGS: Anchor[] = [
     ko: '밥을 먹고 산책을 하고 돌아왔다. 그런 하루였다.',
     en: 'I ate, I walked, I came home. That was the day.',
     ja: 'ご飯を食べて、散歩をして帰ってきた。そんな一日。' },
+  { label: '일상-읽기', family: '일상',
+    ko: '요즘 책을 한 권 읽고 있다. 어디까지 읽었는지 적어둔다.',
+    en: 'I am reading a book these days. Writing down where I left off.',
+    ja: '最近、本を一冊読んでいる。どこまで読んだか書いておく。' },
+  { label: '일상-소식', family: '일상',
+    ko: '뉴스에서 그런 이야기를 봤다. 세상이 그렇게 돌아가는 모양이다.',
+    en: 'Saw that story in the news. So that is how the world is going.',
+    ja: 'ニュースでそんな話を見た。世の中はそういうふうに動いているらしい。' },
+  { label: '일상-혼잣말', family: '일상',
+    ko: '이게 맞나? 잘 모르겠다. 그냥 적어둔다.',
+    en: 'Is this right? I am not sure. Just writing it down.',
+    ja: 'これで合っているのかな。よく分からない。とりあえず書いておく。' },
 ]
 
 /* ---------------- 상황 — 무엇에 대한 이야기인가 ---------------- */

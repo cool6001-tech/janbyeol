@@ -145,12 +145,27 @@ begin
   -- 이 글에서 언어의 그림자를 뺍니다
   v := (p_embedding::extensions.vector(768) - lang_shadow(p_lang))::extensions.vector(768);
 
-  -- 마음 ① 큰 갈래부터 (기준 문장도 저마다 제 언어의 그림자를 뺍니다 — 나라끼리 공평하게)
-  with d as (
+  /* 마음 ① 어떤 갈래인가.
+
+     '일상'은 겨루지 않습니다.
+     일상은 마음이 아니라 **마음이 읽히지 않았다**는 뜻이에요. 그걸 다른
+     마음들과 같은 자격으로 줄 세우면 눈금이 많은 쪽이 이깁니다. 실제로
+     일상 눈금을 둘에서 다섯으로 늘렸더니 '눈물이 났다'는 글까지 일상이
+     가져갔습니다.
+
+     그래서 일상은 **겨루는 상대가 아니라 바닥**으로 씁니다. 어떤 마음도
+     일상보다 가깝지 않다면, 그건 마음이 읽힌 게 아니라 그냥 하루인 거예요.
+     이 바닥은 글마다 저절로 정해지니, 사람이 숫자를 다시 재어 넣을 일도 없습니다. */
+  with daily as (
+    select min((a.embedding - lang_shadow(a.lang))::extensions.vector(768) <=> v) as floor_d
+    from meaning_anchors a
+    where a.kind = 'feeling' and a.family = '일상'
+  ),
+  d as (
     select a.family as fam,
            min((a.embedding - lang_shadow(a.lang))::extensions.vector(768) <=> v) as dist
     from meaning_anchors a
-    where a.kind = 'feeling'
+    where a.kind = 'feeling' and a.family <> '일상'
     group by a.family
   ),
   r as (
@@ -162,23 +177,27 @@ begin
     from d
   )
   select case
-    when r.d1 is null           then null
-    when r.d1 > r.dmed * p_rel  then null   -- 어느 마음에도 뚜렷하지 않다
-    when r.d2 - r.d1 < p_margin then null   -- 고른 게 아니라 찍은 것
+    when r.d1 is null                        then null
+    when r.d1 >= (select floor_d from daily) then null  -- 그냥 하루가 더 가깝다
+    when r.d1 > r.dmed * p_rel               then null  -- 어느 마음에도 뚜렷하지 않다
+    when r.d2 - r.d1 < p_margin              then null  -- 고른 게 아니라 찍은 것
     else r.top
   end
   into v_family
   from r;
 
-  -- 마음 ② 정해진 갈래 안에서 가장 가까운 결 (여기선 가리지 않습니다)
-  if v_family is not null then
-    select a.label
-    into v_feeling
-    from meaning_anchors a
-    where a.kind = 'feeling' and a.family = v_family
-    order by (a.embedding - lang_shadow(a.lang))::extensions.vector(768) <=> v
-    limit 1;
+  -- 마음이 읽히지 않으면 '일상'입니다 — 그 안에서도 결은 골라줍니다
+  if v_family is null then
+    v_family := '일상';
   end if;
+
+  -- 마음 ② 정해진 갈래 안에서 가장 가까운 결 (여기선 가리지 않습니다)
+  select a.label
+  into v_feeling
+  from meaning_anchors a
+  where a.kind = 'feeling' and a.family = v_family
+  order by (a.embedding - lang_shadow(a.lang))::extensions.vector(768) <=> v
+  limit 1;
 
   -- 상황
   with d as (

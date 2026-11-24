@@ -69,25 +69,36 @@ const cors = {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } })
 
-function adminKey(): string | null {
-  const legacy = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-  if (legacy) return legacy
+/**
+ * 이 프로젝트의 관리자 키들.
+ *
+ * 하나만 집으면 안 됩니다. 키를 갈아끼우는 동안에는 프로젝트에 키가 둘이고,
+ * 그중 어느 쪽을 들고 오셔도 주인은 주인이니까요. (embed-star 와 같은 이유)
+ */
+function adminKeys(): string[] {
+  const keys: string[] = []
+  const add = (v: unknown) => {
+    if (typeof v === 'string' && v && !keys.includes(v)) keys.push(v)
+  }
+  add(Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'))
   const bundle = Deno.env.get('SUPABASE_SECRET_KEYS')
   if (bundle) {
     try {
       const parsed = JSON.parse(bundle)
-      const first = Array.isArray(parsed) ? parsed[0] : Object.values(parsed)[0]
-      if (typeof first === 'string') return first
-      if (first && typeof first === 'object') {
-        const v = first as Record<string, unknown>
-        const found = v.api_key ?? v.key ?? v.secret
-        if (typeof found === 'string') return found
+      const items = Array.isArray(parsed) ? parsed : Object.values(parsed)
+      for (const it of items) {
+        if (typeof it === 'string') add(it)
+        else if (it && typeof it === 'object') {
+          const v = it as Record<string, unknown>
+          add(v.api_key ?? v.key ?? v.secret)
+        }
       }
     } catch {
-      /* 아래 수동 키로 */
+      /* 모양이 다르면 건너뜁니다 */
     }
   }
-  return Deno.env.get('JANBYEOL_SERVICE_KEY') ?? null
+  add(Deno.env.get('JANBYEOL_SERVICE_KEY'))
+  return keys
 }
 
 /** 'ko-KR' → 'ko'. 모르는 코드는 영어로 */
@@ -200,7 +211,8 @@ Deno.serve(async (req) => {
   if (!auth) return json({ error: '로그인이 필요합니다' }, 401)
 
   const apiKey = Deno.env.get('GEMINI_API_KEY')
-  const key = adminKey()
+  const adminList = adminKeys()
+  const key = adminList[0] ?? null
   if (!apiKey || !key) {
     console.error('[잔별] GEMINI_API_KEY 또는 관리자 키가 비어 있습니다')
     return json({ error: '지금은 옮겨 읽을 수 없어요' }, 500)
@@ -222,7 +234,7 @@ Deno.serve(async (req) => {
   // 익명 계정이 아니라 관리자 키로만 엽니다. 모델 이름이 비밀은 아니지만,
   // 아무나 부를 수 있는 문은 안 만드는 게 낫습니다.
   if (body.probe) {
-    if (token !== key) return json({ error: '관리자 키로만 볼 수 있습니다' }, 403)
+    if (!adminList.includes(token)) return json({ error: '관리자 키로만 볼 수 있습니다' }, 403)
     try {
       const models = await listModels(apiKey)
       return json({ ok: true, candidates: MODELS, available: models })
