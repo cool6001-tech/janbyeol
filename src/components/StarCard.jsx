@@ -7,6 +7,8 @@ import StarGuard from './StarGuard.jsx'
 import { isFeatureOnce } from '../lib/policy.js'
 import { isForeign, myLanguage } from '../lib/lang.js'
 import { storage } from '../lib/storage.js'
+import { siteOrigin } from '../lib/platform.js'
+import { shareLink } from '../lib/native.js'
 
 /**
  * 카드 공유 동의를 받기 시작한 때 (한국 시간 2026-10-30 0시).
@@ -120,15 +122,12 @@ export default function StarCard({
    * 카카오톡에서 글 한 줄이 그대로 보이는 건 그 덕분이에요.
    */
   const share = async () => {
-    const url = `${window.location.origin}/s/${star.id}`
+    // 앱에서 열려도 받는 사람에게는 janbyeol.com 주소가 가야 합니다
+    const url = `${siteOrigin()}/s/${star.id}`
     const text = star.text.length > 40 ? `${star.text.slice(0, 40)}…` : star.text
     try {
-      if (navigator.share) {
-        await navigator.share({ title: '잔별', text, url })
-        return
-      }
-      await navigator.clipboard.writeText(url)
-      onNotice?.('주소를 복사했어요. 어디든 붙여넣어 보내세요.')
+      const how = await shareLink({ title: '잔별', text, url })
+      if (how === 'copied') onNotice?.('주소를 복사했어요. 어디든 붙여넣어 보내세요.')
     } catch {
       /* 사용자가 공유창을 닫은 것 — 알릴 일이 아닙니다 */
     }

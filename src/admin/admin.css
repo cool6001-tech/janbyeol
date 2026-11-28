@@ -309,3 +309,13 @@ html:has(body.adminpage) {
     grid-template-columns: 1fr;
   }
 }
+
+/* 손님별 — 혜성 하나에 한 줄. 날짜별 그래프는 그 줄의 맨 아래 한 칸을 다 씁니다 */
+.ad-comet + .ad-comet {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--ad-line);
+}
+.ad-comet-charts {
+  margin-top: 10px;
+}

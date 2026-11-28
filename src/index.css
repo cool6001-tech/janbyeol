@@ -3675,3 +3675,223 @@ ul {
     animation: none;
   }
 }
+
+/* ---------------- 손님별 (콜라보 혜성·행성) ----------------
+   잔별의 별과 섞이지 않도록 손님마다 고유의 빛(--v-head · --v-tail)을 씁니다.
+   시트의 뼈대는 '만든 사람에게' 시트(.contactsheet)를 그대로 빌려 씁니다. */
+.visitorsheet {
+  border-color: rgba(var(--v-head), 0.22);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6), 0 0 60px rgba(var(--v-head), 0.08),
+    inset 0 1px 0 rgba(var(--v-tail), 0.1);
+}
+.vs-body {
+  padding: 8px 14px 12px;
+}
+/* 파트너 그림 — 오른쪽 위, 손이 시트 윗변에 얹히도록 걸터앉습니다 */
+.vs-art {
+  position: absolute;
+  right: 46px; /* 닫기 버튼과 겹치지 않게 */
+  bottom: calc(100% - 6px);
+  overflow: hidden;
+  pointer-events: none;
+  /* 잘린 아래쪽은 시트 테두리에 스며들게 */
+  -webkit-mask-image: linear-gradient(180deg, #000 92%, transparent);
+  mask-image: linear-gradient(180deg, #000 92%, transparent);
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.45));
+  animation: vsArtIn 0.7s 0.15s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.vs-art img {
+  position: absolute;
+  max-width: none;
+  user-select: none;
+}
+@keyframes vsArtIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+.vs-mark {
+  position: relative;
+  width: 64px;
+  height: 26px;
+  margin: 2px 0 10px;
+}
+.vs-head {
+  position: absolute;
+  left: 6px;
+  top: 7px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff8f0;
+  box-shadow: 0 0 10px 4px rgba(var(--v-head), 0.7), 0 0 26px 10px rgba(var(--v-head), 0.25);
+  animation: vsBreathe 3.2s ease-in-out infinite;
+}
+.vs-tail {
+  position: absolute;
+  left: 12px;
+  top: 10px;
+  width: 52px;
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(var(--v-tail), 0.75), rgba(var(--v-tail), 0));
+  filter: blur(1px);
+}
+@keyframes vsBreathe {
+  50% {
+    box-shadow: 0 0 12px 5px rgba(var(--v-head), 0.8), 0 0 32px 14px rgba(var(--v-head), 0.3);
+  }
+}
+.vs-eyebrow {
+  margin: 0;
+  font-family: var(--sans);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.08em;
+  color: rgba(var(--v-tail), 0.85);
+}
+.visitorsheet .vs-title {
+  margin-top: 6px;
+  padding-right: 28px;
+  font-size: 17px;
+}
+.visitorsheet .cm-sub + .cm-sub {
+  margin-top: 4px;
+}
+.vs-go {
+  display: block;
+  margin-top: 16px;
+  padding: 11px 0;
+  border: 1px solid rgba(var(--v-head), 0.45);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(var(--v-head), 0.24), rgba(var(--v-head), 0.1));
+  color: #fff1e8;
+  font-family: var(--sans);
+  font-size: 13px;
+  letter-spacing: 0.05em;
+  text-align: center;
+  text-decoration: none;
+  transition: background 0.25s, border-color 0.25s;
+}
+.vs-go:hover {
+  border-color: rgba(var(--v-head), 0.7);
+  background: linear-gradient(180deg, rgba(var(--v-head), 0.34), rgba(var(--v-head), 0.16));
+}
+.vs-note {
+  margin: 8px 0 0;
+  font-size: var(--fs-xs);
+  color: var(--mist);
+  text-align: center;
+  word-break: keep-all;
+}
+@media (min-width: 861px) {
+  .visitorsheet {
+    width: min(360px, 100%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vs-head,
+  .vs-art {
+    animation: none;
+  }
+}
+
+/* ---------------- 새 손님별 알림 (화면 가운데) ----------------
+   fade: 하늘을 가리지 않게 눌림이 통과합니다. confirm: [확인]을 눌러야 닫힙니다. */
+.vannounce {
+  position: fixed;
+  inset: 0;
+  z-index: 58;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  pointer-events: none;
+  animation: vaIn 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.vannounce.confirm {
+  pointer-events: auto;
+  background: rgba(3, 4, 9, 0.38);
+}
+.vannounce.leaving {
+  animation: vaOut 0.45s ease both;
+}
+.vannounce-card {
+  width: min(340px, 100%);
+  padding: 20px 22px 18px;
+  border: 1px solid rgba(var(--v-head), 0.32);
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(16, 20, 38, 0.92), rgba(7, 10, 20, 0.94));
+  backdrop-filter: blur(16px);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55), 0 0 70px rgba(var(--v-head), 0.16),
+    inset 0 1px 0 rgba(var(--v-tail), 0.12);
+  text-align: center;
+  pointer-events: auto;
+}
+.vannounce.fade .vannounce-card {
+  pointer-events: none;
+}
+.vannounce-mark {
+  margin: 0 auto 10px;
+}
+.vannounce-title {
+  margin: 8px 0 0;
+  font-family: var(--serif);
+  font-size: 19px;
+  line-height: 1.5;
+  color: #fff1e8;
+  word-break: keep-all;
+}
+.vannounce-sub {
+  margin: 6px 0 0;
+  font-family: var(--serif);
+  font-size: 13.5px;
+  line-height: 1.8;
+  color: var(--mist-hi);
+  word-break: keep-all;
+}
+.vannounce-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+.vannounce-actions > button {
+  flex: 1;
+  padding: 11px 0;
+  border-radius: 999px;
+  font-family: var(--sans);
+  font-size: 13px;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: background 0.25s, border-color 0.25s;
+}
+.vannounce-ok {
+  border: 1px solid var(--line-2);
+  background: rgba(143, 179, 255, 0.08);
+  color: var(--star);
+}
+.vannounce-go {
+  border: 1px solid rgba(var(--v-head), 0.5);
+  background: linear-gradient(180deg, rgba(var(--v-head), 0.28), rgba(var(--v-head), 0.12));
+  color: #fff1e8;
+}
+.vannounce-go:hover {
+  background: linear-gradient(180deg, rgba(var(--v-head), 0.38), rgba(var(--v-head), 0.18));
+}
+@keyframes vaIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+}
+@keyframes vaOut {
+  to {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.99);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vannounce,
+  .vannounce.leaving {
+    animation: none;
+  }
+}

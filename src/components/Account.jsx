@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { keepMyConstellation, rename, deleteAccount } from '../lib/account.js'
 import { storage } from '../lib/storage.js'
+import { isIOSApp, isNative } from '../lib/platform.js'
 
 /**
  * 이 성단을 지키는 일
@@ -96,13 +97,15 @@ export default function Account({ me, onNotice }) {
           <div className="acctkeepwrap">
             <h3>이 성단을 지키는 일</h3>
             <p className="acctnote">
-              지금 이 성단은 이 브라우저에만 있어요.
+              지금 이 성단은 {isNative ? '이 앱' : '이 브라우저'}에만 있어요.
               <br />
               폰을 바꾸거나 기록을 지우면 띄운 별이 사라집니다.
             </p>
             <div className="acctkeep">
               <button onClick={() => keep('kakao')}>카카오로 내 성단 지키기</button>
               <button onClick={() => keep('google')}>구글로 지키기</button>
+              {/* 아이폰 앱에서는 애플 로그인도 함께 둬야 심사를 통과합니다 (App Store 심사지침 4.8) */}
+              {isIOSApp && <button onClick={() => keep('apple')}>애플로 지키기</button>}
             </div>
             <p className="acctfine">
               다른 기기에서 이미 지킨 성단이 있다면 같은 버튼을 누르세요.

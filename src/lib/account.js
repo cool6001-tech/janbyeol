@@ -16,6 +16,7 @@
 
 import { sb } from './supabase.js'
 import { currentUser, ensureUser, rememberPendingLink } from './storage.js'
+import { startOAuth } from './native.js'
 
 /**
  * 지금 익명 계정에 소셜 계정을 덧붙입니다.
@@ -33,11 +34,9 @@ export async function keepMyConstellation(provider = 'kakao') {
   // 돌아왔을 때 "이미 다른 기기에서 지킨 계정"이라는 답을 받으면
   // 같은 제공자로 로그인해서 이 기기의 별을 옮겨 담습니다 (storage.js 의 resolveUser)
   rememberPendingLink(provider)
-  const { error } = await sb.auth.linkIdentity({
-    provider,
-    options: { redirectTo: `${window.location.origin}/` },
-  })
-  if (error) throw error
+  // 웹은 이 페이지가 제공자에게 떠났다가 돌아오고,
+  // 앱은 시스템 브라우저가 열렸다가 com.janbyeol.app://auth 로 돌아옵니다 (native.js)
+  await startOAuth('link', provider)
 }
 
 /** 이미 연결했는지 — 버튼을 보여줄지 정하는 값 */

@@ -14,6 +14,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js'
+import { isNative } from './platform.js'
 
 const url = import.meta.env.VITE_SUPABASE_URL
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -41,7 +42,9 @@ export const sb = createClient(url || 'https://unset.invalid', anonKey || 'unset
   auth: {
     persistSession: true, // 익명 계정도 이 세션이 남아야 "내 별"이 유지됩니다
     autoRefreshToken: true,
-    detectSessionInUrl: true, // 소셜 로그인 후 돌아올 때 필요
+    detectSessionInUrl: !isNative, // 소셜 로그인 후 돌아올 때 필요 (앱은 native.js 가 딥링크로 받습니다)
+    // 앱은 시스템 브라우저를 거쳐 code 로 돌아오므로 PKCE 를 씁니다. 웹은 예전 그대로.
+    flowType: isNative ? 'pkce' : 'implicit',
   },
 })
 

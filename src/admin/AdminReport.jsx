@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { sb } from '../lib/supabase.js'
 import { ensureUser } from '../lib/storage.js'
+import { VISITORS } from '../data/visitors.js'
 import './admin.css'
 
 /**
@@ -67,13 +68,20 @@ export default function AdminReport() {
   const load = useCallback(async (d) => {
     setState((s) => ({ ...s, status: s.data ? 'refreshing' : 'loading' }))
     const me = await ensureUser()
-    const { data, error } = await sb.rpc('admin_report', { p_days: d })
+    const [{ data, error }, comets] = await Promise.all([
+      sb.rpc('admin_report', { p_days: d }),
+      // 손님별 집계는 따로 — supabase/visitors.sql 을 아직 실행하지 않았어도 리포트는 열리게
+      sb.rpc('admin_visitor_report', { p_days: d }).then(
+        (res) => (res.error ? { missing: true } : res.data),
+        () => ({ missing: true })
+      ),
+    ])
     if (error) {
       const denied = /not_admin/.test(error.message || '') || error.code === '42501'
       setState({ status: denied ? 'denied' : 'error', me, error })
       return
     }
-    setState({ status: 'ready', me, data })
+    setState({ status: 'ready', me, data, comets })
   }, [])
 
   useEffect(() => {
@@ -195,6 +203,8 @@ export default function AdminReport() {
         <Entries entries={w.entries} />
       </Section>
 
+      <Comets report={state.comets} />
+
       <section className="ad-section">
         <header className="ad-sechead">
           <h2>날짜별 추이</h2>
@@ -284,6 +294,56 @@ function Entries({ entries }) {
         ))}
       </ul>
     </div>
+  )
+}
+
+/**
+ * 손님별(콜라보 혜성) — 혜성마다 한 칸.
+ *   알림 본 기기 → 혜성 누름 → 건너간 수(잔별이 보내준 유입)
+ * 파트너에게 "잔별에서 몇 명을 보내드렸어요"라고 말할 수 있는 숫자는 '건너간 수'입니다.
+ */
+const visitorName = (id) => VISITORS.find((v) => v.id === id)?.name || id
+
+function Comets({ report }) {
+  if (!report || report.missing) {
+    return (
+      <Section title="손님별 (콜라보 혜성)" note="혜성으로 보낸 유입">
+        <Tile label="아직 집계 전" value="—" sub="supabase/visitors.sql 을 SQL Editor 에서 실행하면 여기부터 쌓입니다" />
+      </Section>
+    )
+  }
+  const rows = report.visitors || []
+  return (
+    <section className="ad-section">
+      <header className="ad-sechead">
+        <h2>손님별 (콜라보 혜성)</h2>
+        <span className="ad-muted">혜성으로 보낸 유입 · 이 기간</span>
+      </header>
+      {!rows.length ? (
+        <div className="ad-tiles">
+          <Tile label="아직 기록 없음" value="—" sub="혜성이 하늘에 뜨고 사람들이 누르면 여기에 쌓여요" />
+        </div>
+      ) : (
+        rows.map((c) => (
+          <div className="ad-comet" key={c.id}>
+            <div className="ad-tiles">
+            <Tile
+              label={`${visitorName(c.id)} · 건너간 수`}
+              value={fmt(c.go)}
+              sub={`상대 서비스로 보낸 유입 · 누적 ${fmt(c.all_go)}번`}
+              strong
+            />
+            <Tile label="혜성을 누른 수" value={fmt(c.open)} sub={`누른 뒤 건너간 비율 ${pct(c.go, c.open)}`} />
+            <Tile label="알림을 본 기기" value={fmt(c.shown)} sub={`알림 본 기기 대비 누름 ${pct(c.open, c.shown)}`} />
+            </div>
+            <div className="ad-charts ad-comet-charts">
+              <LineChart series={{ key: 'go', label: '날짜별 건너간 수', unit: '번' }} daily={c.daily || []} />
+              <LineChart series={{ key: 'open', label: '날짜별 혜성을 누른 수', unit: '번' }} daily={c.daily || []} />
+            </div>
+          </div>
+        ))
+      )}
+    </section>
   )
 }
 

@@ -10,7 +10,12 @@ import Tutorial from './components/Tutorial.jsx'
 import IntroVideo from './components/IntroVideo.jsx'
 import TermsNotice from './components/TermsNotice.jsx'
 import { ContactSheet } from './components/Contact.jsx'
+import VisitorSheet from './components/VisitorSheet.jsx'
+import { activeVisitors, takeUnseenVisitors, VISITORS, ANNOUNCE_STYLE } from './data/visitors.js'
+import VisitorAnnounce from './components/VisitorAnnounce.jsx'
+import { countVisitorEvent } from './lib/visitorStats.js'
 import { useJanbyeol } from './hooks/useJanbyeol.js'
+import { haptic } from './lib/native.js'
 import { myConstellation, findKindred, shiningStars } from './lib/stats.js'
 import { buildGraph, traceFrom, reachOf } from './lib/graph.js'
 import { distance, distanceToFit, cosmosDistance, FOCAL } from './lib/geometry.js'
@@ -183,6 +188,11 @@ export default function App() {
   const [tourStep, setTourStep] = useState(null) // 안내가 지금 보여주는 장면
   const [tourInset, setTourInset] = useState(0) // 안내 카드가 아래를 가리는 높이
   const [contactOpen, setContactOpen] = useState(false) // 만든 사람에게 — 메일 주소 카드
+  // 손님별(콜라보 혜성·행성) — 기간이 지나면 저절로 사라집니다. 한 시간마다 다시 확인해요.
+  const [visitors, setVisitors] = useState(() => activeVisitors())
+  const [visitorId, setVisitorId] = useState(null)
+  const [visitorHello, setVisitorHello] = useState(null) // 새로 나타난 손님 — 하늘에서 한 번 빛을 퍼뜨립니다
+  const [announce, setAnnounce] = useState(null) // 화면 가운데 알림 { list, mode }
   const toastTimer = useRef(0)
   const cardAnchorRef = useRef(null)
   // 창 크기가 바뀌었을 때 "지금 무엇을 보고 있었는지"를 리스너에서 읽기 위한 것
@@ -600,6 +610,36 @@ export default function App() {
   }, [stars, kindred, kinTrail, kinFor, graph, fitDistance, say, refineKin])
 
   const closeContact = useCallback(() => setContactOpen(false), [])
+  const closeVisitor = useCallback(() => setVisitorId(null), [])
+  const openVisitor = useCallback((id) => {
+    setWelcomeGone(true)
+    setVisitorId(id)
+    countVisitorEvent(id, 'open') // 관리자 리포트 — 혜성을 눌러 소개를 연 횟수
+  }, [])
+
+  useEffect(() => {
+    const timer = setInterval(() => setVisitors(activeVisitors()), 60 * 60 * 1000)
+    return () => clearInterval(timer)
+  }, [])
+
+  /* 새 혜성이 등장했을 때 — 기기마다 손님마다 **한 번만** 알려줍니다.
+     처음 온 사람은 안내·영상이 끝난 뒤에, 이미 오던 사람은 하늘이 열리자마자.
+     알림과 함께 하늘의 그 혜성에서 빛의 고리가 퍼져서 어디 있는지 바로 보여요. */
+  useEffect(() => {
+    if (!ready || tourOpen || introOpen || !visitors.length) return
+    const timer = setTimeout(() => {
+      // ?visitor-preview=fade|confirm — 두 방식을 미리 보기 (이미 봤어도 띄우고, 기록은 남기지 않음)
+      const preview = new URLSearchParams(window.location.search).get('visitor-preview')
+      const fresh = preview ? visitors : takeUnseenVisitors(visitors)
+      if (!fresh.length) return
+      const mode = preview === 'confirm' || preview === 'fade' ? preview : ANNOUNCE_STYLE
+      setWelcomeGone(true) // 첫 문구와 겹치지 않게
+      setAnnounce({ list: fresh, mode })
+      // 관리자 리포트 — 알림을 본 기기 수 (미리보기는 세지 않습니다)
+      if (!preview) fresh.forEach((v) => countVisitorEvent(v.id, 'shown'))
+    }, 300) // 하늘이 열리자마자
+    return () => clearTimeout(timer)
+  }, [ready, tourOpen, introOpen, visitors])
 
   /** 카드를 닫아도 줌인·궤도·연결은 그대로 남는다 */
   // 카드를 닫아도 지금 시점(내가 띄운 별 / 전체 은하)은 그대로 — 시점은 상단 탭으로만 바뀝니다
@@ -715,6 +755,7 @@ export default function App() {
       try {
         // allowFeature 를 함께 넘깁니다 — 예전엔 여기서 빠져서, 쓸 때 체크한 '소개 동의'가 저장되지 않았어요
         star = await addStar({ text, photo, allowFeature })
+        haptic() // 앱에서만 — 별이 손을 떠나는 순간
         // 처음 띄우는 잔별 — 그때 고른 답을 '앞으로의 선택'으로 기억합니다 (다시 묻지 않도록)
         if (firstChoice !== undefined) setFeaturePref(firstChoice).catch(() => {})
       } catch (err) {
@@ -959,6 +1000,9 @@ export default function App() {
         leftInset={leftInset}
         initialDist={wholeGalaxy()}
         readTrail={readTrail}
+        visitors={visitors}
+        onVisitor={openVisitor}
+        visitorHello={visitorHello}
       />
 
 
@@ -1078,6 +1122,23 @@ export default function App() {
       <Toast message={toast} />
 
       {contactOpen && <ContactSheet onClose={closeContact} />}
+
+      {announce && (
+        <VisitorAnnounce
+          visitors={announce.list}
+          mode={announce.mode}
+          onClose={() => {
+            // 알림이 혜성을 가리고 있었으니, 걷히는 순간 혜성에서 빛의 고리를 퍼뜨려 자리를 알려줍니다
+            setVisitorHello({ ids: announce.list.map((v) => v.id), at: Date.now() })
+            setAnnounce(null)
+          }}
+          onOpen={openVisitor}
+        />
+      )}
+
+      {visitorId && (
+        <VisitorSheet visitor={VISITORS.find((v) => v.id === visitorId)} onClose={closeVisitor} />
+      )}
 
       {introOpen && <IntroVideo onDone={() => setIntroOpen(false)} />}
 

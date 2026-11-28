@@ -387,6 +387,11 @@ export async function shareCardFile(blob, star) {
   // 스토리 링크 스티커에 붙일 수 있게 링크를 미리 복사해 둡니다.
   try { await navigator.clipboard.writeText(link); } catch (_) {}
 
+  // 앱(Capacitor)에서는 웹 공유창·다운로드가 동작하지 않아서 앱의 공유창을 씁니다.
+  const { shareFile } = await import("./native.js");
+  const native = await shareFile(blob, file.name);
+  if (native) return native; // 'shared' | 'cancelled'
+
   // 휴대폰에서만 공유창을 씁니다. PC(윈도우·맥)의 공유창은 카카오톡 같은 앱에
   // 영상을 제대로 넘기지 못하는 경우가 많아서, PC에서는 바로 파일로 저장합니다.
   if (isMobileDevice() && navigator.canShare && navigator.canShare({ files: [file] })) {

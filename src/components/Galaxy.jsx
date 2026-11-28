@@ -4,6 +4,7 @@ import { emotionOf, emotionRGB } from '../lib/emotionColor.js'
 import { buildAmbient, buildClouds, clusterSiteFor, CLUSTER_R } from '../lib/galaxy.js'
 import { ageFade, isAnniversary } from '../lib/time.js'
 import { hasPhoto } from '../lib/photo.js'
+import { visitorPos, autoOrbit } from '../data/visitors.js'
 
 /** 배경 잔별 수. 개별로는 보이지 않고 뭉쳐서 빛의 면이 됩니다. */
 const AMBIENT_COUNT = 20000
@@ -63,6 +64,9 @@ export default function Galaxy({
   leftInset = 0,
   initialDist = 3400,
   readTrail,
+  visitors = [],
+  onVisitor,
+  visitorHello,
 }) {
   const canvasRef = useRef(null)
   const propsRef = useRef(null)
@@ -148,6 +152,9 @@ export default function Galaxy({
     topInset,
     rightInset,
     leftInset,
+    visitors,
+    onVisitor,
+    visitorHello,
   }
 
   /* 은하는 한 번만 만든다 (같은 씨앗 → 언제나 같은 하늘) */
@@ -207,6 +214,10 @@ export default function Galaxy({
     }
     resize()
     window.addEventListener('resize', resize)
+    // 손님별 이름표 글꼴 — 매 프레임 스타일을 읽지 않도록 한 번만
+    const serif = getComputedStyle(document.documentElement).getPropertyValue('--serif').trim() || 'serif'
+    const labelFont = `12px ${serif}`
+    const labelFontBold = `700 13.5px ${serif}`
 
     /* 별마다 살아 있는 값 (저장되지 않는 것들) */
     /**
@@ -1130,6 +1141,224 @@ export default function Galaxy({
         scene.cardFor = null
       }
 
+      /* 손님별 — 은하 둘레를 천천히 도는 콜라보 혜성·행성
+         잔별(누군가의 하루)과 섞이지 않게 별 모양이 아닌 혜성으로, 은하 바깥에서만 돕니다.
+         꼬리는 진짜 혜성처럼 '해'(은하의 핵)의 반대쪽으로 흩날립니다. */
+      scene.visitorHits = []
+      if (p.visitors?.length) {
+        // 내 성단을 보거나 별빛을 따라갈 때는 한 걸음 물러나 조용히
+        const vDim = traced ? 0.35 : p.mineMode ? 0.4 : 1
+        const vt = reduced ? 0 : (now - t0) / 1000
+        // 궤도를 적지 않은 손님은 하늘이 채워진 뒤 별과 겹치지 않는 고리를 한 번 고릅니다
+        if (!scene.visitorOrbits) scene.visitorOrbits = new Map()
+        const orbits = scene.visitorOrbits
+        const settled = p.stars.length > 0 || now - t0 > 4000
+        for (const v of p.visitors) {
+          if (orbits.has(v.id)) continue
+          if (v.orbit) orbits.set(v.id, v.orbit)
+          else if (settled) orbits.set(v.id, autoOrbit(v, p.stars, [...orbits.values()]))
+        }
+        for (const v of p.visitors) {
+          const orbit = orbits.get(v.id)
+          if (!orbit) continue
+          const raw = visitorPos(v, vt + (reduced ? orbit.period * 0.1 : 0), orbit)
+          // 좁은 화면은 은하를 테두리까지 꽉 채워 담아서, 궤도를 조금 안으로 당깁니다
+          const shrink = 1
+          const pos = { x: raw.x * shrink, y: raw.y, z: raw.z * shrink }
+          const pr = project(pos, cam, width, height)
+          if (!pr) continue
+          const [hr, hg, hb] = v.head
+          const [tr, tg, tb] = v.tail
+          const size = Math.max(5.6, Math.min(11, 28 * pr.k))
+          // 꼬리 방향 — 핵에서 멀어지는 쪽 (화면 위에서)
+          let ux = 1
+          let uy = -0.4
+          if (core) {
+            const dx = pr.sx - core.sx
+            const dy = pr.sy - core.sy
+            const m = Math.hypot(dx, dy) || 1
+            ux = dx / m
+            uy = dy / m
+          }
+          const tailLen = Math.max(70, size * 14) * (reduced ? 1 : 0.92 + 0.08 * Math.sin(t * 1.7))
+          const ex = pr.sx + ux * tailLen
+          const ey = pr.sy + uy * tailLen
+          // 꼬리 — 넓고 옅은 번짐 위에 가는 심지
+          for (const [w, a] of [[size * 2.6, 0.16], [size * 0.9, 0.42]]) {
+            const tg2 = ctx.createLinearGradient(pr.sx, pr.sy, ex, ey)
+            tg2.addColorStop(0, `rgba(${tr},${tg},${tb},${a * vDim})`)
+            tg2.addColorStop(1, `rgba(${tr},${tg},${tb},0)`)
+            ctx.strokeStyle = tg2
+            ctx.lineWidth = w
+            ctx.lineCap = 'round'
+            ctx.beginPath()
+            ctx.moveTo(pr.sx, pr.sy)
+            ctx.lineTo(ex, ey)
+            ctx.stroke()
+          }
+          ctx.lineCap = 'butt'
+          /* 색 — 손님의 sparkle 빛들 사이를 천천히 건너갑니다 (산타: 빨강 → 금빛 → 초록 → 빨강)
+             반짝일 때마다 다음 색으로 넘어가요. sparkle 이 없으면 머리 빛 하나로. */
+          const cycle = 2.8 // 초마다 한 번 반짝
+          const palette = v.sparkle?.length ? v.sparkle : [v.head]
+          const pos2 = reduced ? 0 : t / cycle + orbit.phase
+          const k0 = Math.floor(pos2)
+          const fr = Math.min(1, (pos2 - k0) / 0.35) // 반짝인 뒤 0.35 주기 동안 다음 색으로 물듭니다
+          const n = palette.length
+          const A = palette[((k0 % n) + n) % n]
+          const B = palette[(((k0 + 1) % n) + n) % n]
+          const cr = Math.round(A[0] + (B[0] - A[0]) * fr)
+          const cg = Math.round(A[1] + (B[1] - A[1]) * fr)
+          const cb = Math.round(A[2] + (B[2] - A[2]) * fr)
+
+          // 머리의 빛무리 — 지금의 색으로 천천히 숨 쉽니다
+          const breathe = reduced ? 1 : 0.85 + 0.15 * Math.sin(t * 1.2)
+          const hR = size * 7 * breathe
+          const hg2 = ctx.createRadialGradient(pr.sx, pr.sy, 0, pr.sx, pr.sy, hR)
+          hg2.addColorStop(0, `rgba(${cr},${cg},${cb},${0.75 * vDim})`)
+          hg2.addColorStop(0.3, `rgba(${cr},${cg},${cb},${0.26 * vDim})`)
+          hg2.addColorStop(1, `rgba(${cr},${cg},${cb},0)`)
+          ctx.fillStyle = hg2
+          ctx.beginPath()
+          ctx.arc(pr.sx, pr.sy, hR, 0, 6.283)
+          ctx.fill()
+          // 머리의 심 — 하얗게 빛나는 한 점
+          ctx.fillStyle = `rgba(255,248,240,${0.95 * vDim})`
+          ctx.beginPath()
+          ctx.arc(pr.sx, pr.sy, size * 0.7, 0, 6.283)
+          ctx.fill()
+
+          /* 반짝임 — 눈길이 가되 광고처럼 깜빡이진 않게.
+             평소엔 은은한 십자 빛, 몇 초에 한 번 '반짝' 하고 길게 뻗었다가 잦아듭니다. */
+          const ph = reduced ? 0.5 : (t / cycle + orbit.phase) % 1
+          const glint = reduced ? 0 : Math.exp(-Math.pow((ph - 0.12) / 0.06, 2)) // 짧고 또렷한 봉우리
+          const flare = 0.45 + 0.55 * glint
+          const spin = reduced ? 0 : Math.sin(t * 0.6) * 0.18
+          const spike = (len, wid, alpha, ang) => {
+            const cx = Math.cos(ang)
+            const cy = Math.sin(ang)
+            for (const dir of [1, -1]) {
+              const ex2 = pr.sx + cx * len * dir
+              const ey2 = pr.sy + cy * len * dir
+              const g = ctx.createLinearGradient(pr.sx, pr.sy, ex2, ey2)
+              g.addColorStop(0, `rgba(255,250,242,${alpha * vDim})`)
+              g.addColorStop(0.12, `rgba(${cr},${cg},${cb},${alpha * vDim})`)
+              g.addColorStop(0.55, `rgba(${cr},${cg},${cb},${alpha * 0.5 * vDim})`)
+              g.addColorStop(1, `rgba(${cr},${cg},${cb},0)`)
+              ctx.strokeStyle = g
+              ctx.lineWidth = wid
+              ctx.beginPath()
+              ctx.moveTo(pr.sx, pr.sy)
+              ctx.lineTo(ex2, ey2)
+              ctx.stroke()
+            }
+          }
+          const L = size * (3.2 + 6.5 * glint)
+          spike(L, 1.4, 0.85 * flare, spin) // 가로
+          spike(L, 1.4, 0.85 * flare, spin + Math.PI / 2) // 세로
+          spike(L * 0.45, 1, 0.5 * flare, spin + Math.PI / 4) // 대각선은 짧게
+          spike(L * 0.45, 1, 0.5 * flare, spin - Math.PI / 4)
+          if (glint > 0.05) {
+            // 반짝이는 순간 머리 둘레로 한 번 번지는 빛
+            const fg = ctx.createRadialGradient(pr.sx, pr.sy, 0, pr.sx, pr.sy, size * 6)
+            fg.addColorStop(0, `rgba(${cr},${cg},${cb},${0.7 * glint * vDim})`)
+            fg.addColorStop(0.4, `rgba(${cr},${cg},${cb},${0.3 * glint * vDim})`)
+            fg.addColorStop(1, `rgba(${cr},${cg},${cb},0)`)
+            ctx.fillStyle = fg
+            ctx.beginPath()
+            ctx.arc(pr.sx, pr.sy, size * 6, 0, 6.283)
+            ctx.fill()
+          }
+
+          // 꼬리를 따라 흩날리는 금빛 가루 — 머리에서 떨어져 나와 꼬리 끝으로 흘러가며 사라집니다
+          if (!reduced) {
+            const DUST = 7
+            const nx = -uy // 꼬리에 수직인 방향
+            const ny = ux
+            for (let i = 0; i < DUST; i++) {
+              const f = (t * 0.32 + i / DUST) % 1 // 0: 머리 → 1: 꼬리 끝
+              const wob = Math.sin(i * 12.9898 + t * 1.3) * size * (0.6 + f * 1.8)
+              const dx = pr.sx + ux * tailLen * f + nx * wob
+              const dy = pr.sy + uy * tailLen * f + ny * wob
+              const tw = 0.5 + 0.5 * Math.sin(t * 7 + i * 2.1) // 가루마다 따로 반짝
+              const a = (1 - f) * tw * 0.9 * vDim
+              if (a < 0.03) continue
+              const r = Math.max(0.8, size * 0.32 * (1 - f * 0.5))
+              const [pr2, pg2, pb2] = palette[i % palette.length] // 가루도 색색으로
+              ctx.fillStyle = `rgba(${pr2},${pg2},${pb2},${a})`
+              ctx.beginPath()
+              ctx.arc(dx, dy, r, 0, 6.283)
+              ctx.fill()
+              if (tw > 0.85 && f < 0.6) {
+                // 가장 밝을 때만 작은 십자
+                ctx.strokeStyle = `rgba(255,244,224,${a * 0.7})`
+                ctx.lineWidth = 0.8
+                ctx.beginPath()
+                ctx.moveTo(dx - r * 3, dy)
+                ctx.lineTo(dx + r * 3, dy)
+                ctx.moveTo(dx, dy - r * 3)
+                ctx.lineTo(dx, dy + r * 3)
+                ctx.stroke()
+              }
+            }
+          }
+
+          // 이름표 — 누를 수 있는 손님이라는 걸 알 수 있게, 작고 조용하게
+          if (vDim > 0.5 && pr.sx > 0 && pr.sx < width && pr.sy > 0 && pr.sy < height) {
+            ctx.globalCompositeOperation = 'source-over'
+            ctx.font = labelFont
+            ctx.textAlign = 'center'
+            ctx.textBaseline = 'top'
+            const ly = pr.sy + size * 2.2 + 6
+            ctx.fillStyle = 'rgba(4,5,10,0.55)'
+            // 이름표 — accent 낱말만 굵게, 손님 고유의 색으로 (나머지는 은은하게)
+            const name = v.name
+            const ai = v.accent ? name.indexOf(v.accent) : -1
+            const parts =
+              ai < 0
+                ? [[name, false]]
+                : [[name.slice(0, ai), false], [v.accent, true], [name.slice(ai + v.accent.length), false]].filter(
+                    ([s]) => s
+                  )
+            const fontOf = (bold) => (bold ? labelFontBold : labelFont)
+            let total = 0
+            for (const [s, b] of parts) {
+              ctx.font = fontOf(b)
+              total += ctx.measureText(s).width
+            }
+            // 화면 가장자리에서 이름이 잘리지 않게
+            let x0 = Math.max(8, Math.min(width - 8 - total, pr.sx - total / 2))
+            ctx.textAlign = 'left'
+            for (const [s, b] of parts) {
+              ctx.font = fontOf(b)
+              ctx.fillStyle = 'rgba(4,5,10,0.6)'
+              ctx.fillText(s, x0 + 0.7, ly + 0.7)
+              ctx.fillStyle = b ? `rgba(${hr},${Math.min(255, hg + 40)},${Math.min(255, hb + 30)},1)` : `rgba(${tr},${tg},${tb},0.72)`
+              ctx.fillText(s, x0, ly)
+              x0 += ctx.measureText(s).width
+            }
+            ctx.globalCompositeOperation = 'lighter'
+          }
+          // 새로 나타난 날 — 알림과 함께 혜성에서 빛의 고리가 세 번 퍼집니다 (어디 있는지 보이도록)
+          const hello = p.visitorHello
+          if (hello?.ids?.includes(v.id)) {
+            const since = (Date.now() - hello.at) / 1000
+            if (since < 4.5) {
+              for (let k = 0; k < 3; k++) {
+                const life = (since - k * 0.7) / 1.8
+                if (life <= 0 || life >= 1) continue
+                ctx.strokeStyle = `rgba(${hr},${hg},${hb},${(1 - life) * 0.7})`
+                ctx.lineWidth = 2 * (1 - life) + 0.6
+                ctx.beginPath()
+                ctx.arc(pr.sx, pr.sy, size * 2 + life * 70, 0, 6.283)
+                ctx.stroke()
+              }
+            }
+          }
+          scene.visitorHits.push({ id: v.id, sx: pr.sx, sy: pr.sy, r: Math.max(26, size * 4) })
+        }
+      }
+
       // 온기 파문
       for (let i = scene.ripples.length - 1; i >= 0; i--) {
         const r = scene.ripples[i]
@@ -1238,6 +1467,13 @@ export default function Galaxy({
       const rect = canvas.getBoundingClientRect()
       const x = cx - rect.left
       const y = cy - rect.top
+      // 손님별이 먼저 — 은하 가장자리에 혼자 떠 있어서 잔별과 겹칠 일이 거의 없습니다
+      for (const h of scene.visitorHits || []) {
+        if (Math.hypot(h.sx - x, h.sy - y) < Math.max(PICK_R, h.r)) {
+          propsRef.current.onVisitor?.(h.id)
+          return
+        }
+      }
       let best = null
       let bestDist = PICK_R
       for (const v of scene.lastProjected?.values() || []) {

@@ -138,12 +138,13 @@ async function resolveUser() {
       if (data.session?.user?.is_anonymous) {
         safeSet(MERGE_KEY, JSON.stringify({ fromToken: data.session.access_token, at: Date.now() }))
       }
-      const { error } = await sb.auth.signInWithOAuth({
-        provider: pending.provider,
-        options: { redirectTo: `${window.location.origin}/` },
-      })
-      if (!error) return new Promise(() => {}) // 곧 페이지를 떠납니다
-      console.error('[잔별] 원래 성단으로 들어가지 못했습니다.', error)
+      try {
+        const { startOAuth } = await import('./native.js')
+        await startOAuth('signin', pending.provider)
+        return new Promise(() => {}) // 곧 페이지를 떠납니다 (앱은 돌아오며 다시 켜집니다)
+      } catch (error) {
+        console.error('[잔별] 원래 성단으로 들어가지 못했습니다.', error)
+      }
     } else if (authErr.code || authErr.desc) {
       console.error('[잔별] 소셜 연결이 끝나지 않았습니다.', authErr)
       authNotice = '연결을 마치지 못했어요. 잠시 뒤에 다시 해주세요.'
