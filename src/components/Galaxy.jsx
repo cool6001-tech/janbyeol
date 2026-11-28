@@ -216,7 +216,7 @@ export default function Galaxy({
     window.addEventListener('resize', resize)
     // 손님별 이름표 글꼴 — 매 프레임 스타일을 읽지 않도록 한 번만
     const serif = getComputedStyle(document.documentElement).getPropertyValue('--serif').trim() || 'serif'
-    const labelFont = `12px ${serif}`
+    const labelFont = `600 13px ${serif}`
     const labelFontBold = `700 13.5px ${serif}`
 
     /* 별마다 살아 있는 값 (저장되지 않는 것들) */
@@ -1327,14 +1327,29 @@ export default function Galaxy({
               total += ctx.measureText(s).width
             }
             // 화면 가장자리에서 이름이 잘리지 않게
-            let x0 = Math.max(8, Math.min(width - 8 - total, pr.sx - total / 2))
+            const padX = 8
+            let x0 = Math.max(8 + padX, Math.min(width - 8 - padX - total, pr.sx - total / 2))
+            // 이름표 바탕 — 별 무리 위를 지나도 글자가 묻히지 않게 어두운 알약을 깝니다
+            const bx = x0 - padX
+            const bw = total + padX * 2
+            const by = ly - 3
+            const bh = 21
+            ctx.fillStyle = 'rgba(6,8,16,0.72)'
+            ctx.strokeStyle = `rgba(${hr},${hg},${hb},0.35)`
+            ctx.lineWidth = 1
+            ctx.beginPath()
+            if (ctx.roundRect) ctx.roundRect(bx, by, bw, bh, bh / 2)
+            else ctx.rect(bx, by, bw, bh)
+            ctx.fill()
+            ctx.stroke()
             ctx.textAlign = 'left'
             for (const [s, b] of parts) {
               ctx.font = fontOf(b)
-              ctx.fillStyle = 'rgba(4,5,10,0.6)'
-              ctx.fillText(s, x0 + 0.7, ly + 0.7)
-              ctx.fillStyle = b ? `rgba(${hr},${Math.min(255, hg + 40)},${Math.min(255, hb + 30)},1)` : `rgba(${tr},${tg},${tb},0.72)`
-              ctx.fillText(s, x0, ly)
+              // '혜성'은 또렷한 밝은 빛으로, '산타'는 손님 고유의 색으로
+              ctx.fillStyle = b
+                ? `rgba(${hr},${Math.min(255, hg + 40)},${Math.min(255, hb + 30)},1)`
+                : 'rgba(255,240,228,0.96)'
+              ctx.fillText(s, x0, b ? ly - 0.5 : ly + 0.5)
               x0 += ctx.measureText(s).width
             }
             ctx.globalCompositeOperation = 'lighter'
