@@ -23,6 +23,7 @@ src/components/Galaxy.jsx     은하 둘레에 혜성을 그리고, 눌렀는지
 | `head` · `tail` | 머리·꼬리 빛 (RGB) |
 | `orbit` | 궤도. **손님마다 `phase` 를 다르게** 두면 서로 겹치지 않습니다 |
 | `sheet` | 소개 문구 (eyebrow · title · body · cta · note) |
+| `art` | 소개 창 오른쪽 위 그림 (선택). **바깥 주소면 `vercel.json` 의 CSP `img-src` 에 그 도메인을 추가**해야 사이트에서 보입니다. `public/visitors/` 에 파일을 넣고 `/visitors/파일이름` 으로 쓰면 추가할 필요가 없어요 |
 
 ## 손님을 맞는 기준
 

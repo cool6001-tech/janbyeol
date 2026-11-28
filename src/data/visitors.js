@@ -60,6 +60,8 @@ export const VISITORS = [
     ],
 
     // 소개 시트 오른쪽 위에 걸터앉는 그림 (파트너 서비스의 그림을 그대로 불러옵니다)
+    //   ⚠ 바깥 주소의 그림은 vercel.json 의 Content-Security-Policy img-src 에 그 도메인이 있어야 보입니다.
+    //     public/visitors/ 에 파일을 넣고 '/visitors/파일이름' 으로 쓰면 이 설정이 필요 없어요.
     //   crop: 원본에서 잘라 쓸 영역 [x, y, 너비, 높이] — 간판 위의 산타만
     //   size: 원본 크기 [너비, 높이] · width: 시트에 보일 너비(px)
     //   잘린 아래 가장자리(산타의 손)가 시트 윗변에 얹히도록 놓입니다.
